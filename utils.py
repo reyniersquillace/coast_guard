@@ -175,7 +175,7 @@ def show_progress(iterator, width=0, tot=None):
             curr += 1
         yield toreturn
     if config.show_progress:
-        print "Done"
+        print("Done")
 
 
 def set_warning_mode(mode=None, reset=True):
@@ -322,7 +322,7 @@ def normalise_parfile(par):
         Output:
             parfn: Name of (temporary) parfile.
     """
-    if isinstance(par, types.StringTypes):
+    if isinstance(par, (str,)):
         # Assume input is
         if os.path.isfile(par):
             # Assume input is par filename
@@ -588,20 +588,21 @@ def execute(cmd, stdout=subprocess.PIPE, stderr=sys.stderr, dir=None):
 
     stdoutfile = False
     stderrfile = False
-    if type(stdout) == types.StringType:
+    if type(stdout) == str:
         stdout = open(stdout, 'w')
         stdoutfile = True
-    if type(stderr) == types.StringType:
+    if type(stderr) == str:
         stderr = open(stderr, 'w')
         stderrfile = True
-    
+
     # Run (and time) the command. Check for errors.
-    if type(cmd) == types.StringType:
+    if type(cmd) == str:
         shell=True
     else:
         shell=False
     pipe = subprocess.Popen(cmd, shell=shell, cwd=dir, \
-                            stdout=stdout, stderr=subprocess.PIPE)
+                            stdout=stdout, stderr=subprocess.PIPE, \
+                            universal_newlines=True)
     (stdoutdata, stderrdata) = pipe.communicate()
     
     # Close file objects, if any
@@ -670,11 +671,11 @@ def group_subints(infns):
         groups_dict.setdefault(dir, set()).add(fn)
 
     # Determine intersection of all subbands
-    intersection = set.intersection(*groups_dict.values())
-    union = set.union(*groups_dict.values())
+    intersection = set.intersection(*list(groups_dict.values()))
+    union = set.union(*list(groups_dict.values()))
     
-    print "Number of subints not present in all subbands: %s" % \
-                len(union-intersection)
+    print("Number of subints not present in all subbands: %s" % \
+                len(union-intersection))
 
     subbands_dict = {}
     for infn in infns:
@@ -737,7 +738,7 @@ def get_mode(vals):
         counts[val] = 1+count
 
     maxcount = max(counts.values())
-    for key in counts.keys():
+    for key in list(counts.keys()):
         if counts[key] == maxcount:
             return key, counts[key]
 
@@ -1154,7 +1155,7 @@ def sort_by_keys(tosort, keys):
         else:
             rev = False
             print_info("Sorting by %s..." % sortkey, 2)
-        if type(tosort[0][sortkey]) is types.StringType:
+        if type(tosort[0][sortkey]) is str:
             tosort.sort(key=lambda x: x[sortkey].lower(), reverse=rev)
         else:
             tosort.sort(key=lambda x: x[sortkey], reverse=rev)
@@ -1214,11 +1215,11 @@ class ArchiveFile(object):
 
     def __getitem__(self, key):
         filterfunc = lambda x: x # A do-nothing filter
-        if (type(key) in (type('str'), type(u'str'))) and key.endswith("_L"):
-            filterfunc = string.lower
+        if (type(key) in (type('str'), type('str'))) and key.endswith("_L"):
+            filterfunc = str.lower
             key = key[:-2]
-        elif (type(key) in (type('str'), type(u'str'))) and key.endswith("_U"):
-            filterfunc = string.upper
+        elif (type(key) in (type('str'), type('str'))) and key.endswith("_U"):
+            filterfunc = str.upper
             key = key[:-2]
         if key not in self.hdr:
             if key == 'snr':
@@ -1233,7 +1234,7 @@ class ArchiveFile(object):
                 except:
                     raise errors.CoastGuardError("Parameter '%s' is not " \
                             "recognized. Valid keys are '%s'" % \
-                            (key, "', '".join([str(xx) for xx in self.hdr.keys()])))
+                            (key, "', '".join([str(xx) for xx in list(self.hdr.keys())])))
         else:
             val = self.hdr[key]
         return filterfunc(val)
@@ -1352,9 +1353,9 @@ class DefaultOptions(optparse.OptionParser):
         config.debug.set_allmodes_on()
 
     def list_debug(self, options, opt_str, value, parser):
-        print "Available debugging modes:"
+        print("Available debugging modes:")
         for name, desc in config.debug.modes:
-            print "    %s: %s" % (name, desc)
+            print("    %s: %s" % (name, desc))
         sys.exit(1)
 
 
@@ -1503,11 +1504,11 @@ class DefaultArguments(argparse.ArgumentParser):
 
     class ListDebugModes(argparse.Action): 
         def __call__(self, parser, namespace, values, option_string):
-            print "Available debugging modes:"
+            print("Available debugging modes:")
             for name, desc in config.debug.modes:
                 if desc is None:
                     continue
-                print "    %s: %s" % (name, desc)
+                print("    %s: %s" % (name, desc))
             sys.exit(1)
 
     class ToggleConfigAction(argparse.Action):

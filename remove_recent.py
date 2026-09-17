@@ -3,16 +3,16 @@
 import datetime
 import os
 
-import utils
-import database
+from coast_guard import utils
+from coast_guard import database
 
 
 def main():
     cutoff_date = datetime.date.today() - \
                   datetime.timedelta(days=args.days_ago)
     datestr = cutoff_date.strftime('%Y-%m-%d')
-    print "Will delete database rows (and referenced files) " \
-          "added on, or after, %s (YYYY-MM-DD)" % datestr
+    print("Will delete database rows (and referenced files) " \
+          "added on, or after, %s (YYYY-MM-DD)" % datestr)
 
     db = database.Database()
     with db.transaction() as conn:
@@ -46,14 +46,14 @@ def main():
         logsrows = results.fetchall()
         results.close()
 
-        print "There are %d entires to be removed from files table" % \
-            len(filerows)
-        print "There are %d entires to be removed from directories table" % \
-            len(dirrows)
-        print "There are %d entires to be removed from obs table" % \
-            len(obsrows)
-        print "There are %d entires to be removed from logs table" % \
-            len(logsrows)
+        print("There are %d entires to be removed from files table" % \
+            len(filerows))
+        print("There are %d entires to be removed from directories table" % \
+            len(dirrows))
+        print("There are %d entires to be removed from obs table" % \
+            len(obsrows))
+        print("There are %d entires to be removed from logs table" % \
+            len(logsrows))
         if not args.dryrun:
             for row in utils.show_progress(filerows, width=50, tot=len(filerows)):
                 ff = os.path.join(row['filepath'], row['filename'])

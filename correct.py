@@ -138,7 +138,7 @@ def determine_receiver(arf, use_weights=True):
                                                "Inside: %d chan, avg stddev=%g)" %
                                                (np.sum(iout), outside, np.sum(~iout),
                                                 inside))
-    elif arf['band'] in BAND_TO_RECEIVER.keys():
+    elif arf['band'] in list(BAND_TO_RECEIVER.keys()):
         rcvr = BAND_TO_RECEIVER[arf['band']] 
     else:
         raise errors.HeaderCorrectionError("Not set up to correct headers for "
@@ -506,13 +506,13 @@ def is_close(hr1, hr2, delta=1):
 
 
 def main():
-    print ""
-    print "        correct.py"
-    print "     Patrick  Lazarus"
-    print ""
+    print("")
+    print("        correct.py")
+    print("     Patrick  Lazarus")
+    print("")
     
     if len(args.files):
-        print "Number of input files: %d" % len(args.files)
+        print("Number of input files: %d" % len(args.files))
     else:
         raise errors.InputError("No files to correct!")
 
@@ -525,8 +525,8 @@ def main():
         corrfn, corrstr, note = correct_header(fn, obsinfo=obsinfo,
                                                outfn=args.outfn,
                                                backend=args.backend_name)
-        print "    Output corrected file: %s" % corrfn
-        print "        Notes: %s" % note
+        print("    Output corrected file: %s" % corrfn)
+        print("        Notes: %s" % note)
 
 
 if __name__ == '__main__':

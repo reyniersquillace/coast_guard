@@ -33,7 +33,7 @@ from coast_guard import calibrate
 import pyriseset as rs
 
 # Set umask so that all group members can access files/directories created
-os.umask(0007)
+os.umask(0o007)
 
 # A lock for each calibrator database file
 # The multiprocessing.Lock objects are created on demand
@@ -336,8 +336,8 @@ def load_groups(dirrow):
                 obstype = 'pulsar'
             try:
                 ephem = utils.extract_parfile(os.path.join(dirs[0], fns[0]))
-                ephem_md5sum = hashlib.md5(ephem).hexdigest()
-            except errors.InputError, exc:
+                ephem_md5sum = hashlib.md5(ephem.encode('utf-8')).hexdigest()
+            except errors.InputError as exc:
                 warnings.warn(exc.get_message(), errors.CoastGuardWarning)
                 ephem_md5sum = None
             obsinfo.append({'sourcename': arf['name'],
@@ -495,8 +495,8 @@ def load_combined_file(filerow):
                   'snr': arf['snr']}
         try:
             ephem = utils.extract_parfile(cmbfn)
-            values['ephem_md5sum'] = hashlib.md5(ephem).hexdigest()
-        except errors.InputError, exc:
+            values['ephem_md5sum'] = hashlib.md5(ephem.encode('utf-8')).hexdigest()
+        except errors.InputError as exc:
             warnings.warn(exc.get_message(), errors.CoastGuardWarning)
         diagvals = [{'diagnosticpath': os.path.dirname(fullresfn),
                      'diagnosticname': os.path.basename(fullresfn)},
@@ -645,8 +645,8 @@ def load_corrected_file(filerow):
                   'snr': arf['snr']}
         try:
             ephem = utils.extract_parfile(corrfn)
-            values['ephem_md5sum'] = hashlib.md5(ephem).hexdigest()
-        except errors.InputError, exc:
+            values['ephem_md5sum'] = hashlib.md5(ephem.encode('utf-8')).hexdigest()
+        except errors.InputError as exc:
             warnings.warn(exc.get_message(), errors.CoastGuardWarning)
         diagvals = [{'diagnosticpath': os.path.dirname(fullresfn),
                      'diagnosticname': os.path.basename(fullresfn)},
@@ -785,8 +785,8 @@ def load_cleaned_file(filerow):
                   'snr': arf['snr']}
         try:
             ephem = utils.extract_parfile(cleanfn)
-            values['ephem_md5sum'] = hashlib.md5(ephem).hexdigest()
-        except errors.InputError, exc:
+            values['ephem_md5sum'] = hashlib.md5(ephem.encode('utf-8')).hexdigest()
+        except errors.InputError as exc:
             warnings.warn(exc.get_message(), errors.CoastGuardWarning)
         diagvals = [{'diagnosticpath': os.path.dirname(fullresfn),
                      'diagnosticname': os.path.basename(fullresfn)},
@@ -985,8 +985,8 @@ def load_calibrated_file(filerow, lock):
         values['coords'] = arf['coords']
         try:
             ephem = utils.extract_parfile(outpath)
-            values['ephem_md5sum'] = hashlib.md5(ephem).hexdigest()
-        except errors.InputError, exc:
+            values['ephem_md5sum'] = hashlib.md5(ephem.encode('utf-8')).hexdigest()
+        except errors.InputError as exc:
             warnings.warn(exc.get_message(), errors.CoastGuardWarning)
     except Exception as exc:
         utils.print_info("Exception caught while working on File ID %d" %
@@ -1204,7 +1204,7 @@ def get_potential_polcal_scans(db, obs_id):
     # Only keep most recently added file for each
     # observation. Rows are sorted in the query above.
     obs_ids = []
-    for ii in reversed(range(len(rows))):
+    for ii in reversed(list(range(len(rows)))):
         if rows[ii]['obs_id'] in obs_ids:
             rows.pop(ii)
         else:
@@ -1800,7 +1800,7 @@ def get_todo(db, action, priorities=None):
         raise errors.UnrecognizedValueError("The file action '%s' is not "
                                             "recognized. Valid file actions "
                                             "are '%s'." %
-                                            "', '".join(ACTIONS.keys()))
+                                            "', '".join(list(ACTIONS.keys())))
 
     target_stages, qcpassed_only, withlock, actfunc = ACTIONS[action]
     whereclause = db.files.c.status == 'new'
@@ -1853,7 +1853,7 @@ def launch_task(db, action, row):
         raise errors.UnrecognizedValueError("The file action '%s' is not "
                                             "recognized. Valid file actions "
                                             "are '%s'." %
-                                            "', '".join(ACTIONS.keys()))
+                                            "', '".join(list(ACTIONS.keys())))
 
     target_stages, qcpassed_only, withlock, actfunc = ACTIONS[action]
     results = []
@@ -1962,7 +1962,7 @@ def parse_priorities(priority_str):
     if ruletype.lower() not in PRIORITY_FUNC:
         raise ValueError("Prioritization rule '%s' is not recognized. "
                          "Valid types are: '%s'" %
-                         (ruletype, "', '".join(PRIORITY_FUNC.keys())))
+                         (ruletype, "', '".join(list(PRIORITY_FUNC.keys()))))
     priority_list = []
     for cfgstr in cfgstrs.split(','):
         priority_list.append((PRIORITY_FUNC[ruletype], cfgstr))
@@ -1984,7 +1984,7 @@ def main():
     if args.only_action is not None:
         actions_to_perform = [args.only_action]
     else:
-        actions_to_perform = [act for act in ACTIONS.keys() \
+        actions_to_perform = [act for act in list(ACTIONS.keys()) \
                               if act not in args.actions_to_exclude]
 
     global mjd_to_receiver
@@ -2001,11 +2001,11 @@ def main():
         db = database.Database()
 
         # Load raw data directories
-        print "Loading directories..."
+        print("Loading directories...")
         ndirs = load_directories(db, force=args.reattempt_dirs)
         # Group data immediately
         dirrows = get_togroup(db)
-        print "Grouping subints..."
+        print("Grouping subints...")
         for dirrow in utils.show_progress(dirrows, width=50):
             try:
                 load_groups(dirrow)
@@ -2015,7 +2015,7 @@ def main():
         # Turn off progress counters before we enter the main loop
         config.show_progress = False
 
-        print "Entering main loop..."
+        print("Entering main loop...")
         while True:
             nfree = args.numproc - len(inprogress)
             nsubmit = 0
@@ -2042,7 +2042,7 @@ def main():
             # Sleep between iterations
             time.sleep(args.sleep_time)
             # Check for completed tasks
-            for ii in xrange(len(inprogress)-1, -1, -1):
+            for ii in range(len(inprogress)-1, -1, -1):
                 proc = inprogress[ii]
                 #print "Checking %s" % proc.name
                 #print "Is alive: %s; Exitcode: %s" % \
@@ -2074,19 +2074,19 @@ if __name__ == '__main__':
                         default=[], dest='priority',
                         help="A rule for prioritizing observations.")
     actgroup = parser.add_mutually_exclusive_group()
-    actgroup.add_argument("-x", "--exclude", choices=ACTIONS.keys(),
+    actgroup.add_argument("-x", "--exclude", choices=list(ACTIONS.keys()),
                           default=[], metavar="ACTION", 
                           action='append', dest="actions_to_exclude",
                           help="Action to not perform. Multiple -x/--exclude "
                                "arguments may be provided. Must be one of '%s'. "
                                "(Default: perform all actions.)" %
-                               "', '".join(ACTIONS.keys()))
-    actgroup.add_argument("--only", choices=ACTIONS.keys(),
+                               "', '".join(list(ACTIONS.keys())))
+    actgroup.add_argument("--only", choices=list(ACTIONS.keys()),
                           default=None, metavar="ACTION", 
                           dest="only_action",
                           help="Only perform the given action. Must be one of '%s'. "
                                "(Default: perform all actions.)" %
-                               "', '".join(ACTIONS.keys()))
+                               "', '".join(list(ACTIONS.keys())))
     parser.add_argument("--lband-rcvr-map", dest='lband_rcvr_map', type=str,
                         default=None,
                         help="A text file containing MJD to receiver mapping. "

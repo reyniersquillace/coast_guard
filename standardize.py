@@ -1,8 +1,8 @@
 import sys
 import subprocess
 
-import toas
-import utils
+from coast_guard import toas
+from coast_guard import utils
 
 for fn in sys.argv[1:]:
     arf = utils.ArchiveFile(fn)

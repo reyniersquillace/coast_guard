@@ -70,7 +70,7 @@ class ReceiverBandCleaner(cleaners.BaseCleaner):
             chanbw = bw/nchan
             utils.print_info("Pruning frequency band to (%g-%g MHz)" % (lofreq, hifreq), 2)
             # Loop over channels
-            for ichan in xrange(nchan):
+            for ichan in range(nchan):
                 # Get profile for subint=0, pol=0
                 prof = ar.get_Profile(0, 0, ichan)
                 freq = prof.get_centre_frequency()
@@ -97,7 +97,7 @@ class ReceiverBandCleaner(cleaners.BaseCleaner):
         if num_to_trim > 0:
             utils.print_info("Trimming %d channels from each band-edge." % \
                             num_to_trim, 2)
-            for ichan in xrange(num_to_trim):
+            for ichan in range(num_to_trim):
                 clean_utils.zero_weight_chan(ar, ichan) # trim at beginning
                 clean_utils.zero_weight_chan(ar, nchan-ichan-1) # trim at end
 
@@ -114,11 +114,11 @@ class ReceiverBandCleaner(cleaners.BaseCleaner):
         """
         if self.configs.badsubints:
             for tozap in self.configs.badsubints:
-                if type(tozap) is types.IntType:
+                if type(tozap) is int:
                     clean_utils.zero_weight_subint(ar, tozap)
                 else:
                     losubint, hisubint = tozap
-                    for xx in xrange(losubint, hisubint+1):
+                    for xx in range(losubint, hisubint+1):
                         clean_utils.zero_weight_subint(ar, xx)
 
     def __remove_bad_channels(self, ar):
@@ -135,14 +135,14 @@ class ReceiverBandCleaner(cleaners.BaseCleaner):
         if self.configs.badchans:
             nremoved = 0
             for tozap in self.configs.badchans:
-                if type(tozap) is types.IntType:
+                if type(tozap) is int:
                     # A single bad channel to zap
                     clean_utils.zero_weight_chan(ar, tozap)
                     nremoved += 1
                 else:
                     # An (inclusive) interval of bad channels to zap
                     lochan, hichan = tozap
-                    for xx in xrange(lochan, hichan):
+                    for xx in range(lochan, hichan):
                         clean_utils.zero_weight_chan(ar, tozap)
                         nremoved += 1
             utils.print_debug("Removed %d channels due to bad chans " \
@@ -155,14 +155,14 @@ class ReceiverBandCleaner(cleaners.BaseCleaner):
             lofreqs = np.empty(nchan)
             hifreqs = np.empty(nchan)
             chanbw = ar.get_bandwidth()/nchan
-            for ichan in xrange(nchan):
+            for ichan in range(nchan):
                 prof = ar.get_Profile(0, 0, ichan)
                 ctr = prof.get_centre_frequency()
                 lofreqs[ichan] = ctr - chanbw/2.0
                 hifreqs[ichan] = ctr + chanbw/2.0
             
             for tozap in self.configs.badfreqs:
-                if type(tozap) is types.FloatType:
+                if type(tozap) is float:
                     # A single bad freq to zap
                     for ichan in np.argwhere((lofreqs<=tozap) & (hifreqs>tozap)):
                         ichan = ichan.squeeze()

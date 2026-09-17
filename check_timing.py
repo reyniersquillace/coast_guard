@@ -119,7 +119,7 @@ def main():
                     os.makedirs(template_dir)
                 except: pass
                 try:
-                    print psrname, stage, rcvr
+                    print(psrname, stage, rcvr)
                     stdfn = make_template.make_template(template_dir, psrname,
                                                         stage, rcvr)
                     utils.print_info("Made template: %s" % stdfn, 1)
@@ -130,7 +130,7 @@ def main():
     for stage in STAGES:
         # List files to reduce
         rows = list_files.get_files([psrname], stage)
-        print len(rows)
+        print(len(rows))
         fns = {}
         # Initialize list of file names for each receiver
         for rcvr in RCVRS:
@@ -141,11 +141,11 @@ def main():
             fn = os.path.join(row['filepath'], row['filename'])
             fns[row['rcvr']].append(fn)
         stagetimfn = "%s_%s.tim" % (psrname, stage)
-        print "Opening %s" % stagetimfn
+        print("Opening %s" % stagetimfn)
         stagetimff = open(stagetimfn, 'w')
         # Create file listings and generate TOAs
         for rcvr in RCVRS:
-            print rcvr, len(fns[rcvr])
+            print(rcvr, len(fns[rcvr]))
             if not fns[rcvr]:
                 # No files
                 continue
@@ -162,7 +162,7 @@ def main():
             try:
                 os.makedirs(scrunchdir)
             except: pass
-            print "Working on %s %s" % (rcvr, stage)
+            print("Working on %s %s" % (rcvr, stage))
             for fn in utils.show_progress(toscrunch, width=50):
                 # Create a copy of the file with the 'eff_psrix' site
                 cmd = ['psredit', '-c', 'site=eff_psrix', '-O', scrunchdir, fn]
@@ -185,7 +185,7 @@ def main():
                 template = os.path.join(template_dir, template_name)
                 # Generate TOAs
                 fn = os.path.join(scrunchdir, row['filename']) + ext
-                print fn
+                print(fn)
                 stdout, stderr = utils.execute(["pat", "-T", "-A", "FDM",
                                                 "-f", "tempo2", "-C", "rcvr chan", "-d",
                                                 "-s", template, fn])

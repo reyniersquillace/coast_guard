@@ -8,8 +8,8 @@ from coast_guard import database
 
 def main():
     psrname = utils.get_prefname(args.psr)
-    print "Will delete database rows (and referenced files) " \
-          "for source name %s" % psrname
+    print("Will delete database rows (and referenced files) " \
+          "for source name %s" % psrname)
 
     db = database.Database()
     with db.transaction() as conn:
@@ -66,20 +66,20 @@ def main():
         dirrows = results.fetchall()
         results.close()
 
-        print "There are %d entires to be removed from files table" % \
-            len(filerows)
-        print "There are %d entires to be removed from obs table" % \
-            len(obsrows)
-        print "There are %d entries to be removed from directories table" % \
-            len(dirrows)
-        print "There are %d entires to be removed from logs table" % \
-            len(logsrows)
-        print "There are %d entries to be remove from diagnostics table" % \
-            len(diagrows)
+        print("There are %d entires to be removed from files table" % \
+            len(filerows))
+        print("There are %d entires to be removed from obs table" % \
+            len(obsrows))
+        print("There are %d entries to be removed from directories table" % \
+            len(dirrows))
+        print("There are %d entires to be removed from logs table" % \
+            len(logsrows))
+        print("There are %d entries to be remove from diagnostics table" % \
+            len(diagrows))
 
         if not args.dryrun:
             # Remove diagnostics entries
-            print "Removing diagnostic rows"
+            print("Removing diagnostic rows")
             for row in utils.show_progress(diagrows, width=50, tot=len(diagrows)):
                 diagnostic_id = row['diagnostic_id']
                 ff = os.path.join(row['diagnosticpath'], row['diagnosticname'])
@@ -93,7 +93,7 @@ def main():
                 results.close()
 
             # Remove files entries
-            print "Removing file rows"
+            print("Removing file rows")
             for row in utils.show_progress(filerows, width=50, tot=len(filerows)):
                 file_id = row['file_id']
                 ff = os.path.join(row['filepath'], row['filename'])
@@ -107,7 +107,7 @@ def main():
                 results.close()
 
             # Remove logs entries
-            print "Removing log rows"
+            print("Removing log rows")
             for row in utils.show_progress(logsrows, width=50, tot=len(logsrows)):
                 log_id = row['log_id']
                 ff = os.path.join(row['logpath'], row['logname'])
@@ -121,7 +121,7 @@ def main():
                 results.close()
 
             # Remove obs entries
-            print "Removing obs rows"
+            print("Removing obs rows")
             for row in utils.show_progress(obsrows, width=50, tot=len(obsrows)):
                 obs_id = row['obs_id']
                 delete = db.obs.delete().\
@@ -130,7 +130,7 @@ def main():
                 results.close()
 
             # Remove directories entries
-            print "Removing directories rows"
+            print("Removing directories rows")
             for row in utils.show_progress(dirrows, width=50, tot=len(dirrows)):
                 dir_id = row['dir_id']
                 delete = db.directories.delete().\

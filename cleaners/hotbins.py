@@ -1,9 +1,9 @@
 import numpy as np
 
-import config
-import cleaners
-import config_types
-import utils
+from coast_guard import config
+from coast_guard import cleaners
+from . import config_types
+from coast_guard import utils
 
 class HotbinsCleaner(cleaners.BaseCleaner):
     name = 'hotbins'

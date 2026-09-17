@@ -2,6 +2,6 @@
 
 import sys
 
-import utils
+from coast_guard import utils
 
-print utils.get_prefname(sys.argv[1])
+print(utils.get_prefname(sys.argv[1]))

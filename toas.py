@@ -2,9 +2,9 @@
 import os
 import os.path
 
-import utils
-import config
-import errors
+from coast_guard import utils
+from coast_guard import config
+from coast_guard import errors
 
 def get_standard(arf, base_standards_dir=None, analytic=None):
     """Given an archive file name return the name of the 
@@ -112,14 +112,14 @@ def get_toas(arf, stdfn, nsubint=None, nchan=None, makediag=True, \
 
 
 def main():
-    print ""
-    print "          toas.py"
-    print "     Patrick  Lazarus"
-    print ""
+    print("")
+    print("          toas.py")
+    print("     Patrick  Lazarus")
+    print("")
     file_list = args + options.from_glob
     to_exclude = options.excluded_files + options.excluded_by_glob
     to_time = utils.exclude_files(file_list, to_exclude)
-    print "Number of input files: %d" % len(to_time)
+    print("Number of input files: %d" % len(to_time))
     
     to_time = [utils.ArchiveFile(fn) for fn in to_time]
     
@@ -135,7 +135,7 @@ def main():
             flagstrs = [utils.get_outfn(flag, arf) for flag in config.cfg.flags]
             if flagstrs:
                 toastr = toastr + " " + " ".join(flagstrs) 
-            print toastr
+            print(toastr)
 
 
 def purge_flags_callback(option, opt_str, value, parser):

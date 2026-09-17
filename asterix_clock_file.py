@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 import datetime
 import sys
 import os.path
@@ -57,7 +57,7 @@ def get_maser_lines(day):
         dt = rsutils.mjd_to_datetime(day)
     elif (type(day) is datetime.datetime) or (type(day) is datetime.date):
         pass
-    elif (type(day) is str) or (type(day) is unicode):
+    elif (type(day) is str) or (type(day) is str):
         try:
             # Assume mjd-string
             mjd = float(day)
@@ -82,9 +82,9 @@ def get_maser_lines(day):
            ]
     for url in urls:
         try:
-            data = urllib2.urlopen(url)
+            data = urllib.request.urlopen(url)
             break
-        except urllib2.HTTPError, e:
+        except urllib.error.HTTPError as e:
             if e.getcode() != 404:
                 raise
     else:
@@ -286,7 +286,7 @@ def main():
         except NoMaserData:
             outfile.write("# Cannot determine clock correction for MJD %g: " \
                           "No maser data parsed from file for MJD %d\n" % (mjd, imjd))
-        except ValueError, exc:
+        except ValueError as exc:
             outfile.write("# Cannot determine clock correction for MJD %g: " \
                           "%s\n" % (mjd, str(exc)))
 

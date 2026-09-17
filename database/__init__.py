@@ -7,8 +7,8 @@ import sqlalchemy as sa
 from coast_guard import config
 from coast_guard import errors
 
-import schema
-import obslog
+from . import schema
+from . import obslog
 from coast_guard import utils
 
 null = lambda x: x
@@ -17,28 +17,28 @@ toround_re = re.compile(r"_R(-?\d+)?$")
 
 def fancy_getitem(self, key):
     filterfunc = null
-    if (type(key) in (type('str'), type(u'str'))) and key.endswith("_L"):
-        filterfunc = string.lower
+    if (type(key) in (type('str'), type('str'))) and key.endswith("_L"):
+        filterfunc = str.lower
         key = key[:-2]
-    elif (type(key) in (type('str'), type(u'str'))) and key.endswith("_U"):
-        filterfunc = string.upper
+    elif (type(key) in (type('str'), type('str'))) and key.endswith("_U"):
+        filterfunc = str.upper
         key = key[:-2]
-    elif (type(key) in (type('str'), type(u'str'))) and toround_re.search(key):
+    elif (type(key) in (type('str'), type('str'))) and toround_re.search(key):
         head, sep, tail = key.rpartition('_R')
         digits = int(tail) if tail else 0
         filterfunc = lambda x: round(x, digits)
         key = head
-    elif (type(key) in (type('str'), type(u'str'))) and key.startswith("date:"):
+    elif (type(key) in (type('str'), type('str'))) and key.startswith("date:"):
         fmt = key[5:]
         key = 'start_mjd'
         filterfunc = lambda mjd: utils.mjd_to_datetime(mjd).strftime(fmt)
-    elif (type(key) in (type('str'), type(u'str'))) and (key == "secs"):
+    elif (type(key) in (type('str'), type('str'))) and (key == "secs"):
         key = 'start_mjd'
         filterfunc = lambda mjd: int((mjd % 1)*24*3600+0.5)
     if key in self:
         return filterfunc(super(self.__class__, self).__getitem__(key))
     else:
-        matches = [k for k in self.keys() if k.startswith(key)]
+        matches = [k for k in list(self.keys()) if k.startswith(key)]
         if len(matches) == 1:
             return filterfunc(super(self.__class__, self).__getitem__(matches[0]))
         elif len(matches) > 1:

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 import sys
 
-import utils
-import toas
+from coast_guard import utils
+from coast_guard import toas
 
 arf = utils.ArchiveFile(sys.argv[1])
-print toas.get_standard(arf, analytic=False)
+print(toas.get_standard(arf, analytic=False))

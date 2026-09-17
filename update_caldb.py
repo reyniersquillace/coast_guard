@@ -7,7 +7,7 @@ from coast_guard import utils
 def main():
     db = database.Database()
     caldbfn = calibrate.update_caldb(db, args.sourcename, force=True)
-    print "Updated %s" % caldbfn
+    print("Updated %s" % caldbfn)
 
 
 if __name__ == '__main__':

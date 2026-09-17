@@ -23,14 +23,14 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import psrchive
 
-import toas
-import diagnose
-import utils
-import clean
-import cleaners
-import combine
-import config
-import errors
+from coast_guard import toas
+from coast_guard import diagnose
+from coast_guard import utils
+from coast_guard import clean
+from coast_guard import cleaners
+from coast_guard import combine
+from coast_guard import config
+from coast_guard import errors
 
 class ReductionLog(object):
     """An object to log reduction of timing data.
@@ -239,14 +239,14 @@ class ReductionJob(object):
 
 
 def main():
-    print ""
-    print "        reduce.py"
-    print "     Patrick  Lazarus"
-    print ""
+    print("")
+    print("        reduce.py")
+    print("     Patrick  Lazarus")
+    print("")
     file_list = args + options.from_glob
     to_exclude = options.excluded_files + options.excluded_by_glob
     to_reduce = utils.exclude_files(file_list, to_exclude)
-    print "Number of input files: %d" % len(to_reduce)
+    print("Number of input files: %d" % len(to_reduce))
     
     if not to_reduce:
         raise errors.BadFile("No files to reduce!")
@@ -260,15 +260,15 @@ def main():
                         maketoas=options.maketoas)
     outfns, toastrs = job.run()
 
-    print "Output file names:"
+    print("Output file names:")
     for outfn in outfns:
-        print "    %s" % outfn.fn
+        print("    %s" % outfn.fn)
     
     if toastrs:
-        print "TOAs:"
-        print "\n".join(toastrs)
+        print("TOAs:")
+        print("\n".join(toastrs))
     else:
-        print "No TOAs"
+        print("No TOAs")
 
 if __name__=="__main__":
     parser = utils.DefaultOptions(usage="%prog [OPTIONS] FILES ...", \

@@ -161,7 +161,7 @@ def get_files_by_type(psrnames, filetype, rcvr=None):
     # Only keep most recently added file for each
     # observation. Rows are sorted in the query above.
     obs_ids = []
-    for ii in reversed(range(len(rows))):
+    for ii in reversed(list(range(len(rows)))):
         if rows[ii]['obs_id'] in obs_ids:
             rows.pop(ii)
         else:
@@ -219,9 +219,9 @@ def main():
     utils.sort_by_keys(rows, args.sortkeys)
     for row in rows:
         if args.fmt is not None:
-            print args.fmt.decode('string-escape') % row
+            print(args.fmt.encode().decode('unicode_escape') % row)
         else:
-            print os.path.join(row['filepath'], row['filename'])
+            print(os.path.join(row['filepath'], row['filename']))
             utils.print_info("    File ID: %(file_id)d; "
                              "Obs ID: %(obs_id)d; "
                              "Status: %(status)s; "
@@ -234,7 +234,7 @@ def main():
         info['Stage %s' % row['stage']] = \
             info.get('Stage %s' % row['stage'], 0)+1
     utils.print_info("Summary:\n    %s" %
-                     "\n    ".join(["%s: %d" % xx for xx in info.iteritems()]), 1)
+                     "\n    ".join(["%s: %d" % xx for xx in info.items()]), 1)
 
 
 if __name__ == '__main__':

@@ -168,31 +168,31 @@ def main():
         subdirs.append(tmp2)
     subdirs.reverse()
     backupdir = os.path.join(config.output_location, "removed", *subdirs)
-    print "Will remove database entries for data in %s" % dir_toremove
-    print "Back-ups of existing files will be copied to %s" % backupdir
+    print("Will remove database entries for data in %s" % dir_toremove)
+    print("Back-ups of existing files will be copied to %s" % backupdir)
     
     db = database.Database()
 
     obs_ids = get_obsinfo(db, dir_id)
-    print "Will also remove %d observations" % len(obs_ids)
+    print("Will also remove %d observations" % len(obs_ids))
     tmp = ", ".join(["%d" % xx for xx in obs_ids])
     utils.print_info("Obs IDs: %s" % tmp, 1)
 
     log_ids, logfns = get_loginfo(db, obs_ids)
     assert len(log_ids) == len(logfns)
-    print "Will also remove %d logs" % len(log_ids)
+    print("Will also remove %d logs" % len(log_ids))
     tmp = "\n".join(["Log ID: %d; %s" % xx for xx in zip(log_ids, logfns)])
     utils.print_info(tmp, 1)
 
     file_ids, fns = get_fileinfo(db, obs_ids)
     assert len(file_ids) == len(fns)
-    print "Will also remove %d files" % len(file_ids)
+    print("Will also remove %d files" % len(file_ids))
     tmp = "\n".join(["File ID: %d; %s" % xx for xx in zip(file_ids, fns)])
     utils.print_info(tmp, 1)
     
     diag_ids, diagfns = get_diaginfo(db, file_ids)
     assert len(diag_ids) == len(diagfns)
-    print "Will also remove %d diagnostics" % len(diag_ids)
+    print("Will also remove %d diagnostics" % len(diag_ids))
     tmp = "\n".join(["Diagnostic ID: %d; %s" % xx for xx in zip(diag_ids, diagfns)])
     utils.print_info(tmp, 1)
     
@@ -243,7 +243,7 @@ def main():
                 results = conn.execute(delete)
                 results.close()
         except:
-            print "Error encountered! Will attempt to un-move files."
+            print("Error encountered! Will attempt to un-move files.")
             # Try to unmove files
             for src in fns+logfns+diagfns:
                 fn = os.path.basename(src)
@@ -254,10 +254,10 @@ def main():
                 try:
                     os.rmdir(backupdir)
                 except:
-                    print "Could not remove back-up dir %s" % backupdir
+                    print("Could not remove back-up dir %s" % backupdir)
             raise
         else:
-            print "Successfully scrubbed %s (ID: %d)" % (dir_toremove, dir_id)
+            print("Successfully scrubbed %s (ID: %d)" % (dir_toremove, dir_id))
 
 
 if __name__ == '__main__':

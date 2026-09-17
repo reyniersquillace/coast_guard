@@ -143,12 +143,12 @@ def main():
     subdirs = [datetime.datetime.now().strftime("%Y%m%dT%H:%M:%S"), datestr, obsinfo['sourcename']]
     subdirs.reverse()
     backupdir = os.path.join(config.output_location, "removed", *subdirs)
-    print "Will remove database entries for obs ID %d" % obs_id
-    print "Back-ups of existing files will be copied to %s" % backupdir
+    print("Will remove database entries for obs ID %d" % obs_id)
+    print("Back-ups of existing files will be copied to %s" % backupdir)
     
     log_ids, logfns = get_loginfo(db, obs_id)
     assert len(log_ids) == len(logfns)
-    print "Will also remove %d logs" % len(log_ids)
+    print("Will also remove %d logs" % len(log_ids))
     tmp = "\n".join(["Log ID: %d; %s" % xx for xx in zip(log_ids, logfns)])
     utils.print_info(tmp, 1)
 
@@ -159,23 +159,23 @@ def main():
     file_ids_left = [row['file_id'] for row in rows if row['file_id'] not in file_ids]
     fns = [os.path.join(row['filepath'], row['filename'])
            for row in rows if row['file_id'] in file_ids]
-    print "Will also remove %d files" % len(rows)
+    print("Will also remove %d files" % len(rows))
     tmp = "\n".join(["File ID: %d; %s" % xx for xx in zip(file_ids, fns)])
     utils.print_info(tmp, 1)
 
     diag_ids, diagfns = get_diaginfo(db, file_ids)
     assert len(diag_ids) == len(diagfns)
-    print "Will also remove %d diagnostics" % len(diag_ids)
+    print("Will also remove %d diagnostics" % len(diag_ids))
     tmp = "\n".join(["Diagnostic ID: %d; %s" % xx for xx in zip(diag_ids, diagfns)])
     utils.print_info(tmp, 1)
     
     qctrl_ids = get_qcinfo(db, file_ids)
-    print "Will also remove %d quality control entries" % len(qctrl_ids)
+    print("Will also remove %d quality control entries" % len(qctrl_ids))
     tmp = "\n".join(["QC ID: %d" % xx for xx in qctrl_ids])
     utils.print_info(tmp, 1)
     
     reatt_ids = get_reattinfo(db, file_ids)
-    print "Will also remove %d re-attempt entries" % len(reatt_ids)
+    print("Will also remove %d re-attempt entries" % len(reatt_ids))
     tmp = "\n".join(["Re-attempt ID: %d" % xx for xx in reatt_ids])
     utils.print_info(tmp, 1)
     
@@ -185,7 +185,7 @@ def main():
     if not args.dryrun:
         try:
             # Make back-up directory
-            oldumask = os.umask(0007)
+            oldumask = os.umask(0o007)
             os.makedirs(backupdir)
             os.umask(oldumask)
             # Write mysql dump
@@ -240,7 +240,7 @@ def main():
                 conn.execute(update)
 
         except:
-            print "Error encountered! Will attempt to un-move files."
+            print("Error encountered! Will attempt to un-move files.")
             # Try to unmove files
             for src in fns+logfns+diagfns:
                 fn = os.path.basename(src)
@@ -252,10 +252,10 @@ def main():
                     os.remove(os.path.join(backupdir, "db_entries.sql"))
                     os.rmdir(backupdir)
                 except:
-                    print "Could not remove back-up dir %s" % backupdir
+                    print("Could not remove back-up dir %s" % backupdir)
             raise
         else:
-            print "Successfully reseted obs ID: %d" % obs_id
+            print("Successfully reseted obs ID: %d" % obs_id)
 
 
 if __name__ == '__main__':

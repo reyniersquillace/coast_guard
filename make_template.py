@@ -83,26 +83,26 @@ def make_template(outdir, psrname, stage, rcvr, max_span=1, min_snr=0):
         raise errors.InputError("Output directory (%s) doesn't exist!" %
                                 outdir)
     filerows = list_files.get_files([psrname], stage, rcvr)
-    print "Found %d matching files" % len(filerows)
+    print("Found %d matching files" % len(filerows))
     fns = get_files_to_combine(filerows, max_span, min_snr)
     if not fns:
         raise errors.TemplateGenerationError("No files for type=%s, "
                                              "psr=%s, rcvr=%s" %
                                              (stage, psrname, rcvr))
-    print "Combining %d files" % len(fns)
+    print("Combining %d files" % len(fns))
     cmbfn = combine_files(fns)
 
     runpaas = True
     tmpdir = tempfile.mkdtemp(suffix="cg_paas", dir=config.tmp_directory)
     while runpaas:
         try:
-            print "Running paas"
+            print("Running paas")
             utils.execute(['paas', '-D', '-i', cmbfn], dir=tmpdir)
         except:
-            if raw_input("Failure! Give up? (y/n): ").lower()[0] == 'y':
+            if input("Failure! Give up? (y/n): ").lower()[0] == 'y':
                 runpaas = False
         else:
-            if raw_input("Success! Keep template? (y/n): ").lower()[0] == 'y':
+            if input("Success! Keep template? (y/n): ").lower()[0] == 'y':
                 runpaas = False
                 outbasenm = os.path.join(outdir,
                                          "%s_%s_%s" % (psrname, rcvr, stage))
@@ -128,7 +128,7 @@ def main():
     psrname = utils.get_prefname(args.psr)
     stdfn = make_template(outdir, psrname, args.stage, args.rcvr,
                           args.max_span, args.min_snr)
-    print "Made template: %s", stdfn
+    print("Made template: %s", stdfn)
 
 
 if __name__ == '__main__':

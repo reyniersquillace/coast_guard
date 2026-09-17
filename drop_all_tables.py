@@ -7,7 +7,7 @@ Based on http://www.sqlalchemy.org/trac/wiki/UsageRecipes/DropEverything
 Patrick Lazarus, Oct 30, 2012
 """
 
-import database
+from coast_guard import database
 
 db = database.Database()
 db.engine.echo = True
@@ -21,7 +21,7 @@ metadata = database.sa.schema.MetaData()
 tbs = []
 all_fks = []
 
-for table in db.metadata.tables.values():
+for table in list(db.metadata.tables.values()):
     tbs.append(table)
     all_fks.extend([c for c in table.constraints if \
                     isinstance(c, database.sa.ForeignKeyConstraint)])
@@ -31,10 +31,10 @@ with db.transaction() as conn:
         try:
             conn.execute(database.sa.schema.DropConstraint(fkc))
         except:
-            print "Skipping foreign key: %s" % fkc
+            print("Skipping foreign key: %s" % fkc)
     for table in tbs:
         try:
             conn.execute(database.sa.schema.DropTable(table))
         except:
-            print "Skipping table: %s" % table
+            print("Skipping table: %s" % table)
 

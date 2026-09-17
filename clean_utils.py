@@ -10,9 +10,9 @@ import numpy as np
 import scipy.stats
 import scipy.optimize
 
-import utils
-import config
-import errors
+from . import utils
+from . import config
+from . import errors
 
 def get_subint_weights(ar):
     return ar.get_weights().sum(axis=1)
@@ -343,7 +343,7 @@ def get_frequencies(ar):
     integ = ar.get_first_Integration()
     nchan = ar.get_nchan()
     freqs = np.empty(nchan)
-    for ichan in xrange(nchan):
+    for ichan in range(nchan):
         freqs[ichan] = integ.get_Profile(0, ichan).get_centre_frequency()
     return freqs
 
@@ -383,7 +383,7 @@ def fft_rotate(data, bins):
         Outputs:
             rotated: The rotated data.
     """
-    freqs = np.arange(data.size/2+1, dtype=np.float)
+    freqs = np.arange(data.size//2+1, dtype=float)
     phasor = np.exp(complex(0.0, 2.0*np.pi) * freqs * bins / float(data.size))
     return np.fft.irfft(phasor*np.fft.rfft(data))
 
@@ -660,10 +660,10 @@ def write_psrsh_script(arf, outfn=None):
     nsub, nchan = zapped.shape
     npairs = 0
     line = "zap such "
-    for isub in xrange(nsub):
+    for isub in range(nsub):
         if zapped_ints[isub]:
             continue
-        for ichan in xrange(nchan):
+        for ichan in range(nchan):
             if zapped_chans[ichan]:
                 continue
             if zapped[isub, ichan]:

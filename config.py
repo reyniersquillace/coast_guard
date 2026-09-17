@@ -2,15 +2,15 @@ import sys
 import copy
 import os
 
-import errors
-import debug  # Imported for convenience!!
+from . import errors
+from . import debug  # Imported for convenience!!
 
 base_config_dir = os.getenv("COASTGUARD_CFG", None)
 if base_config_dir is None:
     raise ValueError("COASTGUARD_CFG environment variable must be set. "
                      "(It should point to the CoastGuard configurations "
                      "directory to use.)")
-execfile(os.path.join(base_config_dir, "global.cfg"), {}, locals())
+exec(compile(open(os.path.join(base_config_dir, "global.cfg"), "rb").read(), os.path.join(base_config_dir, "global.cfg"), 'exec'), {}, locals())
 
 
 class ConfigDict(dict):
@@ -33,7 +33,7 @@ def read_file(fn, required=False):
             raise ValueError("Coast Guard configuration files must "
                              "end with the extention '.cfg'.")
         key = os.path.split(fn)[-1][:-4]
-        execfile(fn, {}, cfgdict)
+        exec(compile(open(fn, "rb").read(), fn, 'exec'), {}, cfgdict)
     elif required:
             raise ValueError("Configuration file (%s) doesn't exist "
                              "and is required!" % fn)
@@ -170,12 +170,12 @@ cfg = ConfigManager()
 
 
 def main():
-    import utils
+    from . import utils
     if len(sys.argv) > 1:
         arf = utils.ArchiveFile(sys.argv[1])
         cfg.set_override_config("something", 'newvalue!')
         cfg.load_configs_for_archive(arf)
-    print cfg.get()
+    print(cfg.get())
 
 
 if __name__ == '__main__':

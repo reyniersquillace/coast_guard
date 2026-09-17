@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 
-import utils
-import database
+from coast_guard import utils
+from coast_guard import database
 
 import matplotlib.pyplot as plt
 
@@ -40,11 +40,11 @@ def main():
     ipsr = []
     psrnames = sorted(obs_mjds.keys())
     for ii, psrname in enumerate(psrnames):
-        print psrname, len(obs_mjds[psrname])
+        print(psrname, len(obs_mjds[psrname]))
         ipsr.extend([ii]*len(obs_mjds[psrname]))
         mjds.extend(sorted(obs_mjds[psrname]))
     plt.scatter(mjds, ipsr)
-    plt.yticks(range(len(psrnames)), psrnames)
+    plt.yticks(list(range(len(psrnames))), psrnames)
     plt.xlabel('MJD')
     plt.show()
 

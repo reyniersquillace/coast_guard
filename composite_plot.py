@@ -2,15 +2,15 @@
 import matplotlib
 matplotlib.use('agg') # A non-interactive backend
 
-import utils
-import diagnose
+from coast_guard import utils
+from coast_guard import diagnose
 
 def main():
     for arfn in args:
-        print "Plotting %s" % arfn,
+        print("Plotting %s" % arfn, end=' ')
         arf = utils.ArchiveFile(arfn)
         diagnose.make_composite_summary_plot(arf, options.outpsfn)
-        print " Done"
+        print(" Done")
 
 
 if __name__ == '__main__':

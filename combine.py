@@ -85,7 +85,7 @@ def group_subband_dirs(subdirs, maxspan=None, maxgap=None, \
     if filetype not in FILETYPE_SPECIFICS:
         raise errors.InputError("File type (%s) is not recognized. " \
                                 "Possible values are: '%s'" % \
-                            (filetype, "', '".join(FILETYPE_SPECIFICS.keys())))
+                            (filetype, "', '".join(list(FILETYPE_SPECIFICS.keys()))))
     else:
         globpat, get_start = FILETYPE_SPECIFICS[filetype]
 
@@ -111,7 +111,7 @@ def group_subband_dirs(subdirs, maxspan=None, maxgap=None, \
 
     # Remove sub-bands that have too few subints
     thresh = tossfrac*nsubints
-    for ii in xrange(len(subdirs)-1, -1, -1):
+    for ii in range(len(subdirs)-1, -1, -1):
         subdir = subdirs[ii]
         if nperdir[subdir] < thresh:
             utils.print_info("Ignoring sub-ints from %s. " \
@@ -388,7 +388,7 @@ def combine_all(infns, outfn, expected_nsubbands=None):
     # Combine files from the same sub-band in the time direction
     for group in groups:
         subbands = []
-        for ctr_freq, to_combine in utils.group_by_ctr_freq(group).iteritems():
+        for ctr_freq, to_combine in utils.group_by_ctr_freq(group).items():
             utils.print_info("Combining %d subints at ctr freq %d MHz" % \
                                 (len(to_combine), ctr_freq), 3)
  
@@ -442,13 +442,13 @@ def check_files(infns):
 
 
 def main():
-    print ""
-    print "        combine.py"
-    print "     Patrick  Lazarus"
-    print ""
+    print("")
+    print("        combine.py")
+    print("     Patrick  Lazarus")
+    print("")
     
     if len(args.subdirs):
-        print "Number of input sub-band directories: %d" % len(args.subdirs)
+        print("Number of input sub-band directories: %d" % len(args.subdirs))
     elif args.group_file is None:
         raise errors.InputError("No sub-band directories to combine and no group file provided!")
 
@@ -479,9 +479,9 @@ def main():
             write_listing(usedirs, subints, "list.txt")
     shutil.rmtree(tmpdir)
     if outfns:
-        print "Created %d combined files" % len(outfns)
+        print("Created %d combined files" % len(outfns))
         for outfn in outfns:
-            print "    %s" % outfn
+            print("    %s" % outfn)
 
 
 if __name__=="__main__":
@@ -508,7 +508,7 @@ if __name__=="__main__":
                              "a new combined archive. (Default %d s)" % \
                                 config.cfg.combine_maxgap)
     parser.add_argument('--type', dest='filetype', type=str, \
-                        choices=FILETYPE_SPECIFICS.keys(), \
+                        choices=list(FILETYPE_SPECIFICS.keys()), \
                         help="Type of files being grouped. Can be 'subint',"
                                 "or 'single'. (Default: 'subint')", \
                         default='subint')

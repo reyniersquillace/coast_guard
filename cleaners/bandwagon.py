@@ -1,10 +1,10 @@
 import numpy as np
 
-import config
-import cleaners
-import clean_utils
-import config_types
-import utils
+from coast_guard import config
+from coast_guard import cleaners
+from coast_guard import clean_utils
+from . import config_types
+from coast_guard import utils
 
 class BandwagonCleaner(cleaners.BaseCleaner):
     name = 'bandwagon'

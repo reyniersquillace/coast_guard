@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 import os.path
 
-import database
-import reduce_data
-import utils
+from coast_guard import database
+from coast_guard import reduce_data
+from coast_guard import utils
 
 def get_files(db):
     """Get a list of files from the database.
@@ -34,21 +34,21 @@ def main():
                             nfailed.setdefault(filerow['stage'], 0)
             if args.output_style == 'detail':
                 logrow = reduce_data.get_log(db, filerow['group_id'])
-                print "File ID: %d - Group ID: %d (%s)" % \
+                print("File ID: %d - Group ID: %d (%s)" % \
                         (filerow['file_id'], filerow['group_id'], \
-                                        filerow['stage'])
-                print "    %s" % os.path.join(filerow['filepath'], \
-                                                filerow['filename'])
-                print "    log: %s" % os.path.join(logrow['logpath'], \
-                                                    logrow['logname'])
-                print "    Note: %s" % filerow['note']
-                print ""
+                                        filerow['stage']))
+                print("    %s" % os.path.join(filerow['filepath'], \
+                                                filerow['filename']))
+                print("    log: %s" % os.path.join(logrow['logpath'], \
+                                                    logrow['logname']))
+                print("    Note: %s" % filerow['note'])
+                print("")
     if args.output_style == 'overview':
-        print "Overview"
+        print("Overview")
         for stage in ('combined', 'corrected', 'cleaned'):
-            print "%s: %d failed / %d total" % \
+            print("%s: %d failed / %d total" % \
                     (stage.title(), nfailed.get(stage, 0), \
-                            ntotal.get(stage, 0))
+                            ntotal.get(stage, 0)))
 
 
 if __name__ == '__main__':

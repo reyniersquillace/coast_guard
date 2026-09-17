@@ -5,8 +5,8 @@ for the CoastGuard timing pipeline.
 Patrick Lazarus, Nov. 10, 2011
 """
 
-import colour
-import log
+from . import colour
+from . import log
 
 
 class CoastGuardError(Exception):

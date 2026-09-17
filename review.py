@@ -14,9 +14,9 @@ from PyQt4 import QtGui as qtgui
 from PyQt4 import QtCore as qtcore
 import ui_reviewer
 
-import database
-import utils
-import reduce_data
+from coast_guard import database
+from coast_guard import utils
+from coast_guard import reduce_data
 
 
 class FailedFilesModel(qtcore.QAbstractTableModel):
@@ -31,7 +31,7 @@ class FailedFilesModel(qtcore.QAbstractTableModel):
         self.__files = self.fetch_data_from_database()
         self.__headers = []
         # Get header names from database column names
-        for hdr in self.__files[0].keys():
+        for hdr in list(self.__files[0].keys()):
             self.__headers.append(hdr)
         self.__reattempted = []
 

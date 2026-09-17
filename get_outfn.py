@@ -3,7 +3,7 @@
 import sys
 import os.path
 
-import utils
+from coast_guard import utils
 
 if "-h" in sys.argv or "--help" in sys.argv or len(sys.argv) < 3:
     sys.stderr.write("Usage: %s OUTNAME INFILE\n" % \
@@ -11,4 +11,4 @@ if "-h" in sys.argv or "--help" in sys.argv or len(sys.argv) < 3:
     sys.exit(1)
 
 arf = utils.ArchiveFile(sys.argv[2])
-print utils.get_outfn(sys.argv[1], arf)
+print(utils.get_outfn(sys.argv[1], arf))

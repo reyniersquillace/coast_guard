@@ -56,7 +56,7 @@ def get_files(psrnames, retry=False):
     # Only keep most recently added file for each
     # observation. Rows are sorted in the query above.
     obs_ids = []
-    for ii in reversed(range(len(rows))):
+    for ii in reversed(list(range(len(rows)))):
         if rows[ii]['obs_id'] in obs_ids:
             rows.pop(ii)
         else:
@@ -85,7 +85,7 @@ def main():
             if row['obstype'] == 'pulsar':
                 calscans = reduce_data.get_potential_polcal_scans(db, row['obs_id'])
                 cancal = bool(calscans)
-            sys.stdout.write(args.fmt.decode('string-escape') % row)
+            sys.stdout.write(args.fmt.encode().decode('unicode_escape') % row)
             if row['obstype'] == 'pulsar':
                 sys.stdout.write("\t%s\n" % cancal)
                 utils.print_info("Number of potential calibrator scans: %d" % 

@@ -22,10 +22,10 @@ import scipy.optimize as opt
 import matplotlib
 import matplotlib.pyplot as plt
 
-import utils
-import clean_utils
-import config
-import errors
+from coast_guard import utils
+from coast_guard import clean_utils
+from coast_guard import config
+from coast_guard import errors
 
 func_info = {'std': ("Standard Deviation", np.ma.std), \
              'mean': ("Average", np.ma.mean), \
@@ -93,7 +93,7 @@ class SlicerDiagnosticFigure(matplotlib.figure.Figure):
         mask_2d = np.bitwise_not(np.expand_dims(self.weights, 2).astype(bool))
         mask_3d = mask_2d.repeat(self.nbins, axis=2)
         masked_data = np.ma.masked_array(self.data, mask=mask_3d)
-        for key, (title, func) in func_info.iteritems():
+        for key, (title, func) in func_info.items():
             utils.print_info("Working on %s..." % title, 3)
             self.avail_diagnostics[key] = func(masked_data, axis=2)
 
@@ -108,7 +108,7 @@ class SlicerDiagnosticFigure(matplotlib.figure.Figure):
     def connect_event_triggers(self):
         # Before setting up our own event handlers delete matplotlib's
         # default 'key_press_event' handler.
-        defcids = self.canvas.callbacks.callbacks['key_press_event'].keys()
+        defcids = list(self.canvas.callbacks.callbacks['key_press_event'].keys())
         for cid in defcids:
             self.canvas.callbacks.disconnect(cid)
 
@@ -355,9 +355,9 @@ class SlicerDiagnosticFigure(matplotlib.figure.Figure):
         
         self.fft_ax.cla()
         profile -= profile.mean()
-        powers = np.abs(np.fft.rfft(profile))[:self.nbins/2]
+        powers = np.abs(np.fft.rfft(profile))[:self.nbins//2]
         period = self.ar.get_Integration(int(self.subint)).get_folding_period()
-        freqs = np.fft.fftfreq(self.nbins, period/self.nbins)[:self.nbins/2]
+        freqs = np.fft.fftfreq(self.nbins, period/self.nbins)[:self.nbins//2]
         self.fft_ax.plot(freqs, powers, 'k-')
         self.fft_ax.set_xlim(0, np.max(freqs))
 
@@ -622,9 +622,9 @@ def plot_box(data, basename=None):
     """
     nsubs, nchans, nbins = data.shape
     
-    print data.shape
-    print nsubs, nchans, nbins
-    print np.std(data, axis=2).shape
+    print(data.shape)
+    print(nsubs, nchans, nbins)
+    print(np.std(data, axis=2).shape)
     func = np.std
     title = "Standard Deviation"
     
@@ -774,7 +774,7 @@ def foo():
 
 def make_diagnostic_figure(arf, func_re, diag_re='comprehensive', **kwargs):
     arf_copy = copy.deepcopy(arf)
-    matching_func_keys = [fk for fk in func_info.keys() if re.search(func_re, fk)]
+    matching_func_keys = [fk for fk in list(func_info.keys()) if re.search(func_re, fk)]
     if len(matching_func_keys) == 1:
         func_key = matching_func_keys[0]
         utils.print_info("Using %s as diagnostic function." % func_info[func_key][0], 2)
@@ -1164,7 +1164,7 @@ if __name__ == '__main__':
         help="Function to plot. Possible choices are: %s. " \
              "(Default: std)" % \
              "; ".join(["%s: '%s'" % (key, info[0]) for key, info \
-                                            in func_info.iteritems()]))
+                                            in func_info.items()]))
     parser.add_option('-t', '--diagnostic-type', dest='diagnostic', \
         default='comprehensive', action='store', \
         help="Diagnostic type to display. Possible choices are: %s. "  \

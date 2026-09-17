@@ -296,7 +296,7 @@ class QualityControl(qtgui.QWidget):
     def write_filename(self):
         ff = self.fileinfo
         if self.file_id is not None:
-            print os.path.join(ff['filepath'], ff['filename'])
+            print(os.path.join(ff['filepath'], ff['filename']))
 
     def add_parents_diags(self):
         ff = self.fileinfo

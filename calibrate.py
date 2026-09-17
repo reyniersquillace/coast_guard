@@ -182,13 +182,13 @@ def calibrate(infn, caldbpath, nchans=None):
 
 
 def main():
-    print ""
-    print "        calibrate.py"
-    print "     Patrick  Lazarus"
-    print ""
+    print("")
+    print("        calibrate.py")
+    print("     Patrick  Lazarus")
+    print("")
     
     if len(args.files):
-        print "Number of input files: %d" % len(args.files)
+        print("Number of input files: %d" % len(args.files))
     else:
         raise errors.InputError("No files to calibrate!")
 

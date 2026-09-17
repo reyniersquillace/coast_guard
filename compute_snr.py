@@ -22,7 +22,7 @@ def main():
             fn = os.path.join(row['filepath'], row['filename'])
             try:
                 snr = utils.get_archive_snr(fn)
-            except Exception, e:
+            except Exception as e:
                 sys.stderr.write("Error when computing SNR of %s."
                                  "%s" % (fn, str(e)))
             else:

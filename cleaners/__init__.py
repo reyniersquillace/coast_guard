@@ -1,4 +1,5 @@
 import textwrap
+import importlib
 
 from coast_guard import config
 from coast_guard.cleaners import config_types
@@ -25,7 +26,7 @@ def load_cleaner(cleaner_name):
                     "is not a registered cleaner. The following " \
                     "are registered: '%s'" % \
                     (cleaner_name, "', '".join(registered_cleaners)))
-    mod = __import__(cleaner_name, globals())
+    mod = importlib.import_module('.' + cleaner_name, package=__name__)
     return mod.Cleaner()
 
 
@@ -168,7 +169,7 @@ class Configurations(dict):
 
     def to_string(self):
         # Sort to normalise order
-        return ",".join(sorted(["%s=%s" % ii for ii in self.cfgstrs.iteritems()]))
+        return ",".join(sorted(["%s=%s" % ii for ii in self.cfgstrs.items()]))
 
     def set_from_string(self, cfgstr):
         """Set configurations from a string.

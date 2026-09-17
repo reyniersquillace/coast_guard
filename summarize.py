@@ -9,11 +9,11 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
-import config
-import utils
-import errors
-import toas
-import clean_utils
+from coast_guard import config
+from coast_guard import utils
+from coast_guard import errors
+from coast_guard import toas
+from coast_guard import clean_utils
 
 TOP = 0.95
 BOT = 0.05
@@ -94,16 +94,16 @@ class SummaryFigure(matplotlib.figure.Figure):
         if (event.button==2 or (event.key=='shift' and event.button==1)) and \
                         (event.inaxes in self.ax_to_arf):
             arf = self.ax_to_arf[event.inaxes]
-            print "Filename:", arf.fn
-            print "Source name:", arf['name']
-            print "Telescope:", arf['telescop']
-            print "Receiver:", arf['rcvr']
-            print "Backend:", arf['backend']
-            print "Observation length (s):", arf['length']
-            print "Bandwidth (MHz):", arf['bw']
-            print "MJD:", arf['mjd']
-            print "Date (yyyymmdd):", arf['yyyymmdd']
-            print "Seconds since midnight:", arf['secs']
+            print("Filename:", arf.fn)
+            print("Source name:", arf['name'])
+            print("Telescope:", arf['telescop'])
+            print("Receiver:", arf['rcvr'])
+            print("Backend:", arf['backend'])
+            print("Observation length (s):", arf['length'])
+            print("Bandwidth (MHz):", arf['bw'])
+            print("MJD:", arf['mjd'])
+            print("Date (yyyymmdd):", arf['yyyymmdd'])
+            print("Seconds since midnight:", arf['secs'])
 
     def connect_event_triggers(self):
         self.canvas.mpl_connect("button_press_event", self.buttonpress)
@@ -151,7 +151,7 @@ class SummaryFigure(matplotlib.figure.Figure):
             self.ax_to_arf[ax] = arf
 
             # Add some text
-            towrite = self.infotext.decode('string-escape') % arf
+            towrite = self.infotext.encode().decode('unicode_escape') % arf
             plt.figtext(panel_left+self.plot_width+0.02, \
                         panel_top-0.001, "%(name)s" % arf, \
                         va='top', ha='left', size='x-small')
@@ -243,7 +243,7 @@ def main():
     if not len(arfns):
         raise errors.InputError("No input archives provided! " \
                                 "Here's your summary: NOTHING!")
-    print "Making summary plot of %d files" % len(arfns)
+    print("Making summary plot of %d files" % len(arfns))
     if options.numrows is None:
         numrows = int(np.ceil(len(arfns)/float(options.numcols)))
     else:

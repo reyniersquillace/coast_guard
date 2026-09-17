@@ -33,22 +33,22 @@ for ii, (m, desc) in enumerate(modes):
 
 def set_mode_on(*modes):
     for m in modes:
-        exec "%s = True" % m.upper() in globals() 
+        exec("%s = True" % m.upper(), globals()) 
 
 
 def set_allmodes_on():
     for m, desc in modes:
-        exec "%s = True" % m.upper() in globals() 
+        exec("%s = True" % m.upper(), globals()) 
 
 
 def set_allmodes_off():
     for m, desc in modes:
-        exec "%s = False" % m.upper() in globals() 
+        exec("%s = False" % m.upper(), globals()) 
 
 
 def set_mode_off(*modes):
     for m in modes:
-        exec "%s = False" % m.upper() in globals() 
+        exec("%s = False" % m.upper(), globals()) 
 
 
 def get_on_modes():
@@ -65,7 +65,7 @@ def is_on(mode):
 
 def print_debug_status():
     on_modes = get_on_modes()
-    print "The following debugging modes are turned on:"
+    print("The following debugging modes are turned on:")
     for m in on_modes:
-        print "    %s" % m
+        print("    %s" % m)
 

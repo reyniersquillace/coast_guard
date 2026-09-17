@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-import database
-import utils
-import config
+from coast_guard import database
+from coast_guard import utils
+from coast_guard import config
 
 
 def main():
