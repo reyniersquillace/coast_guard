@@ -112,26 +112,38 @@ def clean_hotbins(ar, thresh=None, fscrunchfirst=None, onpulse=[]):
                         data[ibad] = noise
 
 
-def surgical_scrub(ar, chanthresh=None, subintthresh=None, binthresh=None):
+def surgical_scrub(ar, chanthresh=None, subintthresh=None, binthresh=None, \
+                    template=None):
     """Surgically scrub RFI from the data.
-        
+
         Input:
             ar: The archive to be cleaned.
+            template: Path to a user-supplied 1D or 2D (per-channel)
+                template profile to fit and remove from each
+                sub-int/channel, instead of self-deriving one by summing
+                this archive. See clean_utils.load_template() for the
+                accepted file formats. (Default: self-derive a 1D
+                template from 'ar'.)
         Outputs:
             None - The archive is cleaned in place.
     """
-    import psrchive # Temporarily, because python bindings 
+    import psrchive # Temporarily, because python bindings
                     # are not available on all computers
-    
+
     patient = ar.clone()
     patient.pscrunch()
     patient.remove_baseline()
-    
+
     # Remove profile from dedispersed data
     patient.dedisperse()
     data = patient.get_data().squeeze()
-    template = np.apply_over_axes(np.sum, data, (0, 1)).squeeze()
-    clean_utils.remove_profile_inplace(patient, template)
+    if template is not None:
+        # Use a user-supplied 1D or 2D (per-channel) template instead of
+        # self-deriving one from this archive.
+        tmpl = clean_utils.load_template(template, nchan=patient.get_nchan())
+    else:
+        tmpl = np.apply_over_axes(np.sum, data, (0, 1)).squeeze()
+    clean_utils.remove_profile_inplace(patient, tmpl)
     # re-set DM to 0
     patient.dededisperse()
     
@@ -219,17 +231,32 @@ def power_wash(ar):
     plt.show()
 
 
-def deep_clean(toclean, chanthresh=None, subintthresh=None, binthresh=None):
-    import psrchive # Temporarily, because python bindings 
+def deep_clean(toclean, chanthresh=None, subintthresh=None, binthresh=None, \
+                template=None):
+    """Deep-clean an archive by iteratively de-weighting bad channels,
+        sub-ints and bins.
+
+        Input:
+            toclean: The archive to be cleaned.
+            template: Path to a user-supplied 1D or 2D (per-channel)
+                template profile to fit and remove from each
+                sub-int/channel, instead of self-deriving one by summing
+                the archive. See clean_utils.load_template() for the
+                accepted file formats. (Default: self-derive a 1D
+                template from the archive.)
+        Outputs:
+            None - The archives are cleaned in place.
+    """
+    import psrchive # Temporarily, because python bindings
                     # are not available on all computers
-    
+
     if chanthresh is None:
         chanthresh = config.cfg.clean_chanthresh
     if subintthresh is None:
         subintthresh = config.cfg.clean_subintthresh
     if binthresh is None:
         binthresh = config.cfg.clean_binthresh
-   
+
     ar = toclean.clone()
 
     ar.pscrunch()
@@ -238,8 +265,13 @@ def deep_clean(toclean, chanthresh=None, subintthresh=None, binthresh=None):
 
     # Remove profile
     data = ar.get_data().squeeze()
-    template = np.apply_over_axes(np.sum, data, (0,1)).squeeze()
-    clean_utils.remove_profile_inplace(ar, template, None)
+    if template is not None:
+        # Use a user-supplied 1D or 2D (per-channel) template instead of
+        # self-deriving one from this archive.
+        tmpl = clean_utils.load_template(template, nchan=ar.get_nchan())
+    else:
+        tmpl = np.apply_over_axes(np.sum, data, (0,1)).squeeze()
+    clean_utils.remove_profile_inplace(ar, tmpl, None)
 
     ar.dededisperse()
 
