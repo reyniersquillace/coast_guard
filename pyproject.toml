@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "coast_guard"
+version = "0.2.0"
+description = "CoastGuard RFI-cleaning and timing pipeline for pulsar archives (Python 3 / NumPy 2 fork, click-based CLI)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [
+    { name = "Patrick Lazarus" },
+]
+
+# Only packages that are actually installable from PyPI belong here. A few
+# modules in this repo (psrchive, pyriseset, toaster, PyQt4, ui_reviewer)
+# are observatory-specific or not published to PyPI at all -- they must
+# already be present on your system / PYTHONPATH. See the 'observatory'
+# optional-dependencies group below for a record of which those are.
+dependencies = [
+    "numpy>=1.22",
+    "scipy",
+    "matplotlib",
+    "click>=8.0",
+    "SQLAlchemy",
+    "pytz",
+]
+
+[project.optional-dependencies]
+# Documentation only -- pip cannot install these, they are not on PyPI.
+# Make sure they're importable (e.g. via PYTHONPATH) before running the
+# scripts that need them.
+observatory = ["psrchive", "pyriseset", "toaster", "PyQt4", "ui_reviewer"]
+
+# The package's own root directory *is* the 'coast_guard' package (it has
+# an __init__.py at its top level, alongside cleaners/ and database/
+# subpackages), rather than living one level down in a 'coast_guard/'
+# subdirectory. This mapping tells setuptools to treat this directory
+# itself as that package.
+[tool.setuptools]
+packages = ["coast_guard", "coast_guard.cleaners", "coast_guard.database"]
+
+[tool.setuptools.package-dir]
+coast_guard = "."
+
+# Installed console scripts, one per CLI entry point (all now click
+# commands). Optional convenience -- `python -m coast_guard.<module>` and
+# `python <module>.py` both keep working the same as before regardless.
+[project.scripts]
+coastguard-clean = "coast_guard.clean:main"
+coastguard-diagnose = "coast_guard.diagnose:main"
+coastguard-reduce = "coast_guard.reduce:main"
+coastguard-reduce-data = "coast_guard.reduce_data:main"
+coastguard-combine = "coast_guard.combine:main"
+coastguard-correct = "coast_guard.correct:main"
+coastguard-calibrate = "coast_guard.calibrate:main"
+coastguard-can-calibrate = "coast_guard.can_calibrate:main"
+coastguard-qctrl = "coast_guard.qctrl:main"
+coastguard-toas = "coast_guard.toas:main"
+coastguard-summarize = "coast_guard.summarize:main"
+coastguard-review = "coast_guard.review:main"
+coastguard-composite-plot = "coast_guard.composite_plot:main"
+coastguard-cadence-plot = "coast_guard.cadence_plot:main"
+coastguard-compute-snr = "coast_guard.compute_snr:main"
+coastguard-check-detections = "coast_guard.check_detections:main"
+coastguard-check-timing = "coast_guard.check_timing:main"
+coastguard-create-tables = "coast_guard.create_tables:main"
+coastguard-fail-report = "coast_guard.fail_report:main"
+coastguard-list-files = "coast_guard.list_files:main"
+coastguard-make-template = "coast_guard.make_template:main"
+coastguard-remove-directory = "coast_guard.remove_directory:main"
+coastguard-remove-obs = "coast_guard.remove_obs:main"
+coastguard-remove-pulsar = "coast_guard.remove_pulsar:main"
+coastguard-remove-recent = "coast_guard.remove_recent:main"
+coastguard-update-caldb = "coast_guard.update_caldb:main"
+coastguard-asterix-clock-file = "coast_guard.asterix_clock_file:main"
+coastguard-colour = "coast_guard.colour:main"
