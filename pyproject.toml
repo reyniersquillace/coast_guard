@@ -76,3 +76,19 @@ coastguard-remove-recent = "coast_guard.remove_recent:main"
 coastguard-update-caldb = "coast_guard.update_caldb:main"
 coastguard-asterix-clock-file = "coast_guard.asterix_clock_file:main"
 coastguard-colour = "coast_guard.colour:main"
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-64"]   # or your actual platform(s)
+
+[tool.pixi.dependencies]
+psrchive = "*"
+
+[tool.pixi.pypi-dependencies]
+coast_guard = { path = ".", editable = true }
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+observatory = { features = ["observatory"], solve-group = "default" }
+
+[tool.pixi.tasks]
