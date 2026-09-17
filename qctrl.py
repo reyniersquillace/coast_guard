@@ -15,6 +15,8 @@ import tempfile
 import shutil
 import warnings
 
+import click
+
 from PyQt4 import QtGui as qtgui
 from PyQt4 import QtCore as qtcore
 
@@ -24,6 +26,7 @@ from coast_guard import utils
 from coast_guard import errors
 from coast_guard import reduce_data
 from coast_guard import add_missing_summary_plots as amsp
+from coast_guard import cli_common
 
 class QualityControl(qtgui.QWidget):
     """Quality control window.
@@ -589,11 +592,23 @@ class ZappingDialog(qtgui.QDialog):
         return success
 
 
-def main():
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.option("--prioritize", "priority", multiple=True, default=(),
+                help="A rule for prioritizing observations.")
+@click.option('-C', "--calibrated", "calibrated", is_flag=True, default=False,
+                help="Review calibrated pulsar observations.")
+@click.option('-R', "--re-eval", "re_eval", is_flag=True, default=False,
+                help="Review files with status 'new' even if they already "
+                     "have a quality control assessment.")
+@cli_common.standard_options
+@cli_common.debug_options
+def main(priority, calibrated, re_eval):
+    """Quality control interface for Asterix data."""
+    stage = 'calibrated' if calibrated else 'cleaned'
     app = qtgui.QApplication(sys.argv)
-    
-    qctrl_win = QualityControl(priorities=args.priority, stage=args.stage,
-                               re_eval=args.re_eval)
+
+    qctrl_win = QualityControl(priorities=list(priority), stage=stage,
+                               re_eval=re_eval)
     qctrl_win.get_files_to_check()
     # Display the window
     qctrl_win.show()
@@ -603,17 +618,5 @@ def main():
 
 
 if __name__ == "__main__":
-    parser = utils.DefaultArguments(description="Quality control interface "
-                                    "for Asterix data.")
-    parser.add_argument("--prioritize", action='append',
-                        default=[], dest='priority',
-                        help="A rule for prioritizing observations.")
-    parser.add_argument('-C', "--calibrated", dest='stage', action='store_const',
-                        default='cleaned', const='calibrated',
-                        help="Review calibrated pulsar observations.")
-    parser.add_argument('-R', "--re-eval", dest='re_eval', action='store_true',
-                        help="Review files with status 'new' even if they already "
-                             "have a quality control assessment.")
-    args = parser.parse_args()
     main()
 

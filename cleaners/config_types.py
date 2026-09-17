@@ -95,6 +95,23 @@ class FloatVal(BaseConfigType):
         return "%g" % val
 
 
+class Str(BaseConfigType):
+    """A configuration type for plain string values (e.g. file paths).
+    """
+    name = "string"
+    description = "a string value, e.g. a file path"
+
+    def _string_to_value(self, paramstr):
+        """Return 'paramstr' unmodified.
+        """
+        return paramstr
+
+    def _value_to_string(self, val):
+        """Return a normalized version of the value.
+        """
+        return str(val)
+
+
 class BoolVal(BaseConfigType):
     """A configuration type for boolean values.
     """

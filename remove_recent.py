@@ -3,13 +3,26 @@
 import datetime
 import os
 
+import click
+
 from coast_guard import utils
 from coast_guard import database
+from coast_guard import cli_common
 
 
-def main():
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.option("-n", "--dryrun", "dryrun", is_flag=True,
+                help="Show some information and do not delete "
+                     "files or database rows. "
+                     "(Default: delete files/rows)")
+@click.option("-D", "--days-ago", "days_ago", type=int, required=True,
+                help="Number of days to go back to find entries to delete.")
+@cli_common.standard_options
+@cli_common.debug_options
+def main(dryrun, days_ago):
+    """Delete recent files."""
     cutoff_date = datetime.date.today() - \
-                  datetime.timedelta(days=args.days_ago)
+                  datetime.timedelta(days=days_ago)
     datestr = cutoff_date.strftime('%Y-%m-%d')
     print("Will delete database rows (and referenced files) " \
           "added on, or after, %s (YYYY-MM-DD)" % datestr)
@@ -54,7 +67,7 @@ def main():
             len(obsrows))
         print("There are %d entires to be removed from logs table" % \
             len(logsrows))
-        if not args.dryrun:
+        if not dryrun:
             for row in utils.show_progress(filerows, width=50, tot=len(filerows)):
                 ff = os.path.join(row['filepath'], row['filename'])
                 try:
@@ -84,15 +97,6 @@ def main():
 
 
 if __name__ == '__main__':
-    parser = utils.DefaultArguments(description="Delete recent files.")
-    parser.add_argument("-n", "--dryrun", dest="dryrun", action="store_true", \
-                        help="Show some information and do not delete "
-                             "files or database rows. " \
-                             "(Default: delete files/rows)")
-    parser.add_argument("-D", "--days-ago", dest="days_ago", type=int, \
-                        required=True,
-                        help="Number of days to go back to find entries to delete.")
-    args = parser.parse_args()
     main()
 
 

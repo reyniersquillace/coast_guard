@@ -5,6 +5,7 @@ import os.path
 import datetime
 import warnings
 
+import click
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -14,6 +15,7 @@ from coast_guard import utils
 from coast_guard import errors
 from coast_guard import toas
 from coast_guard import clean_utils
+from coast_guard import cli_common
 
 TOP = 0.95
 BOT = 0.05
@@ -238,91 +240,102 @@ class SummaryFigure(matplotlib.figure.Figure):
         return title
 
 
-def main():
-    arfns = args
+def _cb_set_override_config(key, val):
+    """click callback factory mirroring utils.DefaultOptions.set_override_config()/
+        unset_override_config(): set a config override to a fixed value, but
+        only if the flag was actually given.
+    """
+    def cb(ctx, param, value):
+        if value:
+            config.cfg.set_override_config(key, val)
+    return cb
+
+
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.argument('files', nargs=-1)
+@click.option('-s', '--savefn', 'savefn', default=None,
+        help="Filename to save the plot as. "
+            "(Default: do not save plot).")
+@click.option('-n', '--non-interactive', 'non_interactive', is_flag=True,
+        default=False,
+        help="Do not show the plot interactively. "
+            "(Default: Show interactively.)")
+@click.option('--centre-profile', 'centre_prof_on', is_flag=True, default=False,
+        expose_value=False, callback=_cb_set_override_config('centre_prof', True),
+        help="Centre profile. (Default: %s)" %
+                ((config.cfg.centre_prof and "this is the default") or "do not rotate profile"))
+@click.option('--no-centre-profile', 'centre_prof_off', is_flag=True, default=False,
+        expose_value=False, callback=_cb_set_override_config('centre_prof', False),
+        help="Do not rotate profile. (Default: %s)" %
+                ((not config.cfg.centre_prof and "this is the default") or "rotate profile"))
+@click.option('--scale-indep', 'scale_indep', is_flag=True, default=False,
+        help="Scale all profiles independently. (Default: use same "
+            "scale for all profiles.)")
+@click.option('--sort', 'sortkeys', multiple=True, default=(),
+        help="Sort plots (top to bottom is increasing). Keys are "
+            "vap-recognized keywords. Multiple --sort options can "
+            "be provided. Options provided later will take precedent "
+            "over previous options. (Default: Sort by MJD, receiver, "
+            "then source name.)")
+@click.option('--numcols', 'numcols', default=2, type=int,
+        help="Number of columns to arrange plots into. (Default: use "
+            "a one-column format.)")
+@click.option('--numrows', 'numrows', default=10, type=int,
+        help="Number of rows to arrange plots into. (Default: use "
+            "as many rows as necessary to fit onto one page.)")
+@click.option('-t', '--show-template', 'show_template', default=False,
+        is_flag=True,
+        help="Overlay the template of each pulsar (if available). "
+            "(Default: Don't bother with the template.)")
+@click.option('-i', '--info-text', 'info_text',
+        default="(DM=%(dm).2f pc$\,$cm$^{-3}$, P=%(pms).2f ms)\n"
+                "MJD: %(mjd).2f (%(date:%b %d, %Y)s)\n"
+                "%(rcvr)s\n"
+                "f=%(freq).1f MHz, BW=%(bw)d MHz\n"
+                "T$_{obs}$=%(length)d s\nSNR=%(snr).1f",
+        help="Text to display next to each panel. (Default: "
+            "display MJD, receiver, and observation length.)")
+@cli_common.standard_options
+@cli_common.debug_options
+def main(files, savefn, non_interactive, scale_indep, sortkeys, numcols,
+            numrows, show_template, info_text):
+    interactive = not non_interactive
+    if not sortkeys:
+        sortkeys = ['mjd', 'rcvr', 'name']
+    else:
+        sortkeys = list(sortkeys)
+    arfns = files
     if not len(arfns):
         raise errors.InputError("No input archives provided! " \
                                 "Here's your summary: NOTHING!")
     print("Making summary plot of %d files" % len(arfns))
-    if options.numrows is None:
-        numrows = int(np.ceil(len(arfns)/float(options.numcols)))
-    else:
-        numrows = options.numrows
-    layout = (options.numcols, numrows)
+    if numrows is None:
+        numrows = int(np.ceil(len(arfns)/float(numcols)))
+    layout = (numcols, numrows)
     numpanels = np.prod(layout)
-    arfs = get_archives(arfns, options.sortkeys)
+    arfs = get_archives(arfns, sortkeys)
     numfigs = int(np.ceil(len(arfns)/float(numpanels)))
     for fignum in range(numfigs):
         arfs_toplot = arfs[fignum*numpanels:(fignum+1)*numpanels]
-        fig = plt.figure(figsize=(8,11), FigureClass=SummaryFigure, 
-                arfs=arfs_toplot, scale_indep=options.scale_indep, \
-                show_template=options.show_template, \
-                centre_prof=options.centre_prof, layout=layout, \
-                infotext=options.info_text)
+        fig = plt.figure(figsize=(8,11), FigureClass=SummaryFigure,
+                arfs=arfs_toplot, scale_indep=scale_indep, \
+                show_template=show_template, \
+                centre_prof=None, layout=layout, \
+                infotext=info_text)
         fig.text(0.94, 0.02, "%d / %d" % (fignum+1, numfigs), size='small')
         fig.connect_event_triggers()
         fig.plot()
-        if options.savefn:
+        if savefn:
             if numfigs > 1:
-                fn, ext = os.path.splitext(options.savefn)
+                fn, ext = os.path.splitext(savefn)
                 plt.savefig(fn+("_page%d"%(fignum+1))+ext, papertype='a4')
             else:
-                plt.savefig(options.savefn, papertype='a4')
+                plt.savefig(savefn, papertype='a4')
         fig.canvas.mpl_connect('key_press_event', \
                 lambda ev: ev.key in ('q', 'Q') and plt.close(fig))
-    if options.interactive:
+    if interactive:
         plt.show()
 
 
 if __name__ == "__main__":
-    parser = utils.DefaultOptions()
-    parser.add_option('-s', "--savefn", default=None, \
-        help="Filename to save the plot as. " \
-            "(Default: do not save plot).")
-    parser.add_option('-n', '--non-interactive', dest='interactive', \
-        help="Do not show the plot interactively. " \
-            "(Default: Show interactively.)", \
-        default=True, action='store_false')
-    parser.add_option('--centre-profile', dest='centre_prof', \
-        action='callback', callback=parser.set_override_config, \
-        help="Centre profile. (Default: %s)" % \
-                ((config.cfg.centre_prof and "this is the default") or "do not rotate profile"))
-    parser.add_option('--no-centre-profile', dest='centre_prof', \
-        action='callback', callback=parser.unset_override_config, \
-        help="Do not rotate profile. (Default: %s)" % \
-                ((not config.cfg.centre_prof and "this is the default") or "rotate profile"))
-    parser.add_option('--scale-indep', dest='scale_indep', \
-        action='store_true', default=False, \
-        help="Scale all profiles independently. (Default: use same " \
-            "scale for all profiles.)")
-    parser.add_option('--sort', dest='sortkeys', \
-        action='append', default=[], \
-        help="Sort plots (top to bottom is increasing). Keys are " \
-            "vap-recognized keywords. Multiple --sort options can " \
-            "be provided. Options provided later will take precedent " \
-            "over previous options. (Default: Sort by MJD, receiver, " \
-            "then source name.)")
-    parser.add_option('--numcols', dest='numcols', \
-        default=2, type='int', \
-        help="Number of columns to arrange plots into. (Default: use " \
-            "a one-column format.)")
-    parser.add_option('--numrows', dest='numrows', \
-        default=10, type='int', \
-        help="Number of rows to arrange plots into. (Default: use " \
-            "as many rows as necessary to fit onto one page.)")
-    parser.add_option('-t', '--show-template', dest='show_template', \
-        default=False, action='store_true', \
-        help="Overlay the template of each pulsar (if available). " \
-            "(Default: Don't bother with the template.)")
-    parser.add_option('-i', '--info-text', dest='info_text', \
-        default="(DM=%(dm).2f pc$\,$cm$^{-3}$, P=%(pms).2f ms)\n" \
-                "MJD: %(mjd).2f (%(date:%b %d, %Y)s)\n" \
-                "%(rcvr)s\n" \
-                "f=%(freq).1f MHz, BW=%(bw)d MHz\n" \
-                "T$_{obs}$=%(length)d s\nSNR=%(snr).1f", \
-        help="Text to display next to each panel. (Default: " \
-            "display MJD, receiver, and observation length.)")
-    options, args = parser.parse_args()
-    if not options.sortkeys:
-        options.sortkeys = ['mjd', 'rcvr', 'name']
     main()

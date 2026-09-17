@@ -12,6 +12,7 @@ import glob
 import sys
 import os
 
+import click
 
 import toaster.config
 import toaster.debug
@@ -29,6 +30,7 @@ from coast_guard import debug
 from coast_guard import log
 from coast_guard import correct
 from coast_guard import calibrate
+from coast_guard import cli_common
 
 import pyriseset as rs
 
@@ -1971,7 +1973,47 @@ def parse_priorities(priority_str):
     return priority_list
 
 
-def main():
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.option("-P", "--num-procs", "numproc", type=int, default=1,
+                help="Number of processes to run simultaneously.")
+@click.option("-t", "--sleep-time", "sleep_time", type=int, default=300,
+                help="Number of seconds to sleep between iterations "
+                     "of the main loop. (Default: 300s)")
+@click.option("--prioritize", "priority", multiple=True, default=(),
+                help="A rule for prioritizing observations.")
+@click.option("-x", "--exclude", "actions_to_exclude",
+                type=click.Choice(list(ACTIONS.keys())),
+                default=(), metavar="ACTION", multiple=True,
+                help="Action to not perform. Multiple -x/--exclude "
+                     "arguments may be provided. Must be one of '%s'. "
+                     "(Default: perform all actions.) Mutually exclusive "
+                     "with --only." %
+                     "', '".join(list(ACTIONS.keys())))
+@click.option("--only", "only_action",
+                type=click.Choice(list(ACTIONS.keys())),
+                default=None, metavar="ACTION",
+                help="Only perform the given action. Must be one of '%s'. "
+                     "(Default: perform all actions.) Mutually exclusive "
+                     "with -x/--exclude." %
+                     "', '".join(list(ACTIONS.keys())))
+@click.option("--lband-rcvr-map", "lband_rcvr_map", type=str, default=None,
+                help="A text file containing MJD to receiver mapping. "
+                     "(Default: Try to determine the receiver "
+                     "automatically from observations.)")
+@click.option("--reattempt-dirs", "reattempt_dirs", is_flag=True, default=False,
+                help="Try to reload all directories regardless of "
+                     "modification time. Exisiting DB entries will "
+                     "not be modified or duplicated. (Default: "
+                     "only load recently modified directories.)")
+@cli_common.standard_options
+@cli_common.debug_options
+def main(numproc, sleep_time, priority, actions_to_exclude, only_action,
+            lband_rcvr_map, reattempt_dirs):
+    """Automated reduction of Asterix data."""
+    if actions_to_exclude and only_action is not None:
+        raise click.UsageError("-x/--exclude and --only are mutually "
+                                "exclusive.")
+
     # Share verbosity level with TOASTER
     toaster.config.cfg.verbosity = config.verbosity
     # Share debug modes with TOASTER
@@ -1981,28 +2023,28 @@ def main():
         except toaster.errors.BadDebugMode:
             pass
 
-    if args.only_action is not None:
-        actions_to_perform = [args.only_action]
+    if only_action is not None:
+        actions_to_perform = [only_action]
     else:
         actions_to_perform = [act for act in list(ACTIONS.keys()) \
-                              if act not in args.actions_to_exclude]
+                              if act not in actions_to_exclude]
 
     global mjd_to_receiver
-    if args.lband_rcvr_map is not None:
-        mjd_to_receiver = correct.read_receiver_file(args.lband_rcvr_map)
+    if lband_rcvr_map is not None:
+        mjd_to_receiver = correct.read_receiver_file(lband_rcvr_map)
     else:
         mjd_to_receiver = None
 
     inprogress = []
     try:
         priority_list = []
-        for priority_str in args.priority:
+        for priority_str in priority:
             priority_list.extend(parse_priorities(priority_str))
         db = database.Database()
 
         # Load raw data directories
         print("Loading directories...")
-        ndirs = load_directories(db, force=args.reattempt_dirs)
+        ndirs = load_directories(db, force=reattempt_dirs)
         # Group data immediately
         dirrows = get_togroup(db)
         print("Grouping subints...")
@@ -2017,10 +2059,10 @@ def main():
 
         print("Entering main loop...")
         while True:
-            nfree = args.numproc - len(inprogress)
+            nfree = numproc - len(inprogress)
             nsubmit = 0
             if nfree:
-                utils.print_info("Will perform the following actions: %s" % 
+                utils.print_info("Will perform the following actions: %s" %
                                  ", ".join(actions_to_perform), 1)
                 for action in actions_to_perform:
                     if action == 'load':
@@ -2040,7 +2082,7 @@ def main():
             utils.print_info("[%s] - Num running: %d; Num submitted: %d" %
                         (datetime.datetime.now(), len(inprogress), nsubmit), 0)
             # Sleep between iterations
-            time.sleep(args.sleep_time)
+            time.sleep(sleep_time)
             # Check for completed tasks
             for ii in range(len(inprogress)-1, -1, -1):
                 proc = inprogress[ii]
@@ -2061,42 +2103,4 @@ def main():
 
 
 if __name__ == '__main__':
-    parser = utils.DefaultArguments(description="Automated reduction "
-                                    "of Asterix data.")
-    parser.add_argument("-P", "--num-procs", dest='numproc', type=int,
-                        default=1,
-                        help="Number of processes to run simultaneously.")
-    parser.add_argument("-t", "--sleep-time", dest='sleep_time', type=int,
-                        default=300,
-                        help="Number of seconds to sleep between iterations "
-                             "of the main loop. (Default: 300s)")
-    parser.add_argument("--prioritize", action='append',
-                        default=[], dest='priority',
-                        help="A rule for prioritizing observations.")
-    actgroup = parser.add_mutually_exclusive_group()
-    actgroup.add_argument("-x", "--exclude", choices=list(ACTIONS.keys()),
-                          default=[], metavar="ACTION", 
-                          action='append', dest="actions_to_exclude",
-                          help="Action to not perform. Multiple -x/--exclude "
-                               "arguments may be provided. Must be one of '%s'. "
-                               "(Default: perform all actions.)" %
-                               "', '".join(list(ACTIONS.keys())))
-    actgroup.add_argument("--only", choices=list(ACTIONS.keys()),
-                          default=None, metavar="ACTION", 
-                          dest="only_action",
-                          help="Only perform the given action. Must be one of '%s'. "
-                               "(Default: perform all actions.)" %
-                               "', '".join(list(ACTIONS.keys())))
-    parser.add_argument("--lband-rcvr-map", dest='lband_rcvr_map', type=str,
-                        default=None,
-                        help="A text file containing MJD to receiver mapping. "
-                             "(Default: Try to determine the receiver "
-                             "automatically from observations.)")
-    parser.add_argument("--reattempt-dirs", dest="reattempt_dirs",
-                        action="store_true",
-                        help="Try to reload all directories regardless of "
-                             "modification time. Exisiting DB entries will "
-                             "not be modified or duplicated. (Default: "
-                             "only load recently modified directories.)")
-    args = parser.parse_args()
     main()

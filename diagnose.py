@@ -10,11 +10,11 @@ import re
 import sys
 import os
 import os.path
-import optparse
 import copy
 import tempfile
 import shutil
 
+import click
 import numpy as np
 import scipy.signal
 import scipy.stats
@@ -26,6 +26,7 @@ from coast_guard import utils
 from coast_guard import clean_utils
 from coast_guard import config
 from coast_guard import errors
+from coast_guard import cli_common
 
 func_info = {'std': ("Standard Deviation", np.ma.std), \
              'mean': ("Average", np.ma.mean), \
@@ -1106,93 +1107,114 @@ def __plot_all_psrplot(grdev, ar, preproc="D"):
     utils.execute(cmd)
 
 
-def main():
-    inarf = utils.ArchiveFile(args[0])
+def _cb_override_config(key):
+    """click callback factory mirroring utils.DefaultOptions.override_config():
+        set a config override to the option's value, unless it wasn't given.
+    """
+    def cb(ctx, param, value):
+        if value is not None:
+            config.cfg.set_override_config(key, value)
+        return value
+    return cb
+
+
+def _cb_set_override_config(key, val):
+    """click callback factory mirroring utils.DefaultOptions.set_override_config()/
+        unset_override_config(): set a config override to a fixed value, but
+        only if the flag was actually given.
+    """
+    def cb(ctx, param, value):
+        if value:
+            config.cfg.set_override_config(key, val)
+    return cb
+
+
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.argument('files', nargs=-1)
+@click.option('-D', '--dedisperse', 'dedisp_on', is_flag=True, default=False,
+        expose_value=False, callback=_cb_set_override_config('dedisp', True),
+        help="Dedisperse archive before producing diagnostics. "
+             "(Default: %s)" % ((config.cfg.dedisp and "this is the default") or "use DM=0"))
+@click.option('--no-dedisperse', 'dedisp_off', is_flag=True, default=False,
+        expose_value=False, callback=_cb_set_override_config('dedisp', False),
+        help="Dedisperse archive to DM=0 before producing diagnostics. "
+             "(Default: %s)" % ((not config.cfg.dedisp and "this is the default") or "use DM in emphemeris"))
+@click.option('-b', '--remove-baseline', 'rmbaseline_on', is_flag=True, default=False,
+        expose_value=False, callback=_cb_set_override_config('rmbaseline', True),
+        help="Remove baselines from all profiles using archive's "
+                "'remove_baseline()' method. (Default: %s)" %
+                ((config.cfg.rmbaseline and "this is the default") or "do not remove baselines"))
+@click.option('--no-remove-baseline', 'rmbaseline_off', is_flag=True, default=False,
+        expose_value=False, callback=_cb_set_override_config('rmbaseline', False),
+        help="Do not perform any baseline removal. (Default: %s)" %
+                ((not config.cfg.rmbaseline and "this is the default") or "remove baselines"))
+@click.option('-r', '--remove-profile', 'rmprof_on', is_flag=True, default=False,
+        expose_value=False, callback=_cb_set_override_config('rmprof', True),
+        help="Remove profile. (Default: %s)" %
+                ((config.cfg.rmprof and "this is the default") or "leave profile"))
+@click.option('--no-remove-profile', 'rmprof_off', is_flag=True, default=False,
+        expose_value=False, callback=_cb_set_override_config('rmprof', False),
+        help="Do not subtract profile. (Default: %s)" %
+                ((not config.cfg.rmprof and "this is the default") or "remove profile"))
+@click.option('--centre-profile', 'centre_prof_on', is_flag=True, default=False,
+        expose_value=False, callback=_cb_set_override_config('centre_prof', True),
+        help="Centre profile. (Default: %s)" %
+                ((config.cfg.centre_prof and "this is the default") or "do not rotate profile"))
+@click.option('--no-centre-profile', 'centre_prof_off', is_flag=True, default=False,
+        expose_value=False, callback=_cb_set_override_config('centre_prof', False),
+        help="Do not rotate profile. (Default: %s)" %
+                ((not config.cfg.centre_prof and "this is the default") or "rotate profile"))
+@click.option('--num-threads', 'nthreads', type=int, default=None,
+        callback=_cb_override_config('nthreads'), expose_value=False,
+        help="The number of threads to use when removing profiles. "
+                "(Default: %d)" % config.cfg.nthreads)
+@click.option('-f', '--func-to-plot', 'func_to_plot', default='std',
+        help="Function to plot. Possible choices are: %s. "
+             "(Default: std)" %
+             "; ".join(["%s: '%s'" % (key, info[0]) for key, info
+                                            in func_info.items()]))
+@click.option('-t', '--diagnostic-type', 'diagnostic', default='comprehensive',
+        help="Diagnostic type to display. Possible choices are: %s. "
+             "(Default: ComprehensiveDiagnosticFigure)" %
+             "; ".join(diagnostics))
+@click.option('-s', '--savefn', 'savefn', default=False, type=str,
+        help="Save plot. Argument is file name to save as.")
+@click.option('-n', '--non-interactive', 'non_interactive', is_flag=True,
+        default=False,
+        help="Do not interactively show the plot. (Default: Show the plot.)")
+@click.option('--log-colours', 'logcolours_on', is_flag=True, default=False,
+        expose_value=False, callback=_cb_set_override_config('logcolours', True),
+        help="Plot colours on a logarithmic scale. (Default: %s)" %
+                ((config.cfg.logcolours and "this is the default") or "colour scale is linear"))
+@click.option('--linear-colours', 'logcolours_off', is_flag=True, default=False,
+        expose_value=False, callback=_cb_set_override_config('logcolours', False),
+        help="Plot colours on a linear scale. (Default: %s)" %
+                ((not config.cfg.logcolours and "this is the default") or "colour scale is logarithmic"))
+@click.option('--white-level', 'vmax', type=float, default=None,
+        callback=_cb_override_config('vmax'), expose_value=False,
+        help="Values whose normalised colour is larger than this value "
+                "(on a 0-1 scale) will be shown as white. (Default: %g)" %
+                config.cfg.vmax)
+@click.option('--black-level', 'vmin', type=float, default=None,
+        callback=_cb_override_config('vmin'), expose_value=False,
+        help="Values whose normalised clour is smaller than this value "
+                "(on a 0-1 scale) will be shown as black. (Default: %g)" %
+                config.cfg.vmin)
+@cli_common.standard_options
+@cli_common.debug_options
+def main(files, func_to_plot, diagnostic, savefn, non_interactive):
+    inarf = utils.ArchiveFile(files[0])
     config.cfg.load_configs_for_archive(inarf)
     fig = make_diagnostic_figure(inarf, \
-                func_re=options.func_to_plot, diag_re=options.diagnostic)
-    if options.savefn:
-        savefn = utils.get_outfn(options.savefn, inarf) 
-        plt.savefig(savefn, dpi=600)
-    if options.interactive:
+                func_re=func_to_plot, diag_re=diagnostic)
+    if savefn:
+        outfn = utils.get_outfn(savefn, inarf)
+        plt.savefig(outfn, dpi=600)
+    if not non_interactive:
         fig.canvas.mpl_connect('key_press_event', \
                 lambda ev: (ev.key in ('q', 'Q')) and plt.close(fig))
         plt.show()
 
 
 if __name__ == '__main__':
-    parser = utils.DefaultOptions()
-    parser.add_option('-D', '--dedisperse', dest='dedisp', \
-        action='callback', callback=parser.set_override_config, \
-        help="Dedisperse archive before producing diagnostics. " \
-             "(Default: %s)" % ((config.cfg.dedisp and "this is the default") or "use DM=0"))
-    parser.add_option('--no-dedisperse', dest='dedisp', \
-        action='callback', callback=parser.unset_override_config, \
-        help="Dedisperse archive to DM=0 before producing diagnostics. " \
-             "(Default: %s)" % ((not config.cfg.dedisp and "this is the default") or "use DM in emphemeris"))
-    parser.add_option('-b', '--remove-baseline', dest='rmbaseline', \
-        action='callback', callback=parser.set_override_config, \
-        help="Remove baselines from all profiles using archive's " \
-                "'remove_baseline()' method. (Default: %s)" % \
-                ((config.cfg.rmbaseline and "this is the default") or "do not remove baselines"))
-    parser.add_option('--no-remove-baseline', dest='rmbaseline', \
-        action='callback', callback=parser.unset_override_config, \
-        help="Do not perform any baseline removal. (Default: %s)" % \
-                ((not config.cfg.rmbaseline and "this is the default") or "remove baselines"))
-    parser.add_option('-r', '--remove-profile', dest='rmprof', \
-        action='callback', callback=parser.set_override_config, \
-        help="Remove profile. (Default: %s)" % \
-                ((config.cfg.rmprof and "this is the default") or "leave profile"))
-    parser.add_option('--no-remove-profile', dest='rmprof', \
-        action='callback', callback=parser.unset_override_config, \
-        help="Do not subtract profile. (Default: %s)" % \
-                ((not config.cfg.rmprof and "this is the default") or "remove profile"))
-    parser.add_option('--centre-profile', dest='centre_prof', \
-        action='callback', callback=parser.set_override_config, \
-        help="Centre profile. (Default: %s)" % \
-                ((config.cfg.centre_prof and "this is the default") or "do not rotate profile"))
-    parser.add_option('--no-centre-profile', dest='centre_prof', \
-        action='callback', callback=parser.unset_override_config, \
-        help="Do not rotate profile. (Default: %s)" % \
-                ((not config.cfg.centre_prof and "this is the default") or "rotate profile"))
-    parser.add_option('--num-threads', dest='nthreads', action='callback', \
-        callback=parser.override_config, type='int', \
-        help="The number of threads to use when removing profiles. " \
-                "(Default: %d)" % config.cfg.nthreads)
-    parser.add_option('-f', '--func-to-plot', dest='func_to_plot', \
-        default='std', action='store', \
-        help="Function to plot. Possible choices are: %s. " \
-             "(Default: std)" % \
-             "; ".join(["%s: '%s'" % (key, info[0]) for key, info \
-                                            in func_info.items()]))
-    parser.add_option('-t', '--diagnostic-type', dest='diagnostic', \
-        default='comprehensive', action='store', \
-        help="Diagnostic type to display. Possible choices are: %s. "  \
-             "(Default: ComprehensiveDiagnosticFigure)" % \
-             "; ".join(diagnostics))
-    parser.add_option('-s', '--savefn', dest='savefn', \
-        default=False,
-        help="Save plot. Argument is file name to save as.")
-    parser.add_option('-n', '--non-interactive', dest='interactive', \
-        default=True, action='store_false', \
-        help="Do not interactively show the plot. (Default: Show the plot.)")
-    parser.add_option('--log-colours', dest='logcolours', \
-        action='callback', callback=parser.set_override_config, \
-        help="Plot colours on a logarithmic scale. (Default: %s)" % \
-                ((config.cfg.logcolours and "this is the default") or "colour scale is linear"))
-    parser.add_option('--linear-colours', dest='logcolours', \
-        action='callback', callback=parser.unset_override_config, \
-        help="Plot colours on a linear scale. (Default: %s)" % \
-                ((not config.cfg.logcolours and "this is the default") or "colour scale is logarithmic"))
-    parser.add_option('--white-level', dest='vmax', action='callback', \
-        callback=parser.override_config, type='float', \
-        help="Values whose normalised colour is larger than this value " \
-                "(on a 0-1 scale) will be shown as white. (Default: %g)" % \
-                config.cfg.vmax)
-    parser.add_option('--black-level', dest='vmin', action='callback', \
-        callback=parser.override_config, type='float', \
-        help="Values whose normalised clour is smaller than this value " \
-                "(on a 0-1 scale) will be shown as black. (Default: %g)" % \
-                config.cfg.vmin)
-    options, args = parser.parse_args()
     main()

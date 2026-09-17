@@ -2,10 +2,13 @@
 import sys
 import datetime
 
+import click
+
 from coast_guard import utils
 from coast_guard import database
 from coast_guard import reduce_data
 from coast_guard import calibrate
+from coast_guard import cli_common
 
 def get_files(psrnames, retry=False):
     """Get a list of data base rows containing
@@ -73,32 +76,56 @@ def retry(db, file_id):
         conn.execute(update)
 
 
-def main():
-    rows = get_files(args.psrnames, retry=args.retry)
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.option('-p', '--psr', 'psrnames', type=str, multiple=True,
+                help="The pulsar to grab files for. "
+                     "NOTE: Multiple '-p'/'--psr' options may be given")
+@click.option('--sort', 'sortkeys', metavar='SORTKEY', multiple=True,
+                default=('added',),
+                help="DB column to sort raw data files by. Multiple "
+                    "--sort options can be provided. Options "
+                    "provided later will take precedent "
+                    "over previous options. (Default: Sort "
+                    "by 'added'.)")
+@click.option("-r", "--retry-uncal", "retry_uncal", is_flag=True,
+                help="Cleaned files that passed quality control "
+                     "that can be calibrated, but have not been "
+                     "should be marked as 'calfail' instead of "
+                     "'new' so calibration will be reattempted.")
+@click.option("--fmt", "fmt", default='%(filename)s',
+                help="Write custom format for each matching file.")
+@cli_common.standard_options
+@cli_common.debug_options
+def main(psrnames, sortkeys, retry_uncal, fmt):
+    """For each matching file print if it can be polarization
+        calibrated (i.e. sufficient calibration scans are registered
+        in the database)
+    """
+    rows = get_files(list(psrnames), retry=retry_uncal)
     info = {}
-   
+
     psrnameset = set([row['sourcename'] for row in rows])
-    utils.sort_by_keys(rows, args.sortkeys)
+    utils.sort_by_keys(rows, list(sortkeys))
     db = database.Database()
     with db.transaction() as conn:
         for row in rows:
             if row['obstype'] == 'pulsar':
                 calscans = reduce_data.get_potential_polcal_scans(db, row['obs_id'])
                 cancal = bool(calscans)
-            sys.stdout.write(args.fmt.encode().decode('unicode_escape') % row)
+            sys.stdout.write(fmt.encode().decode('unicode_escape') % row)
             if row['obstype'] == 'pulsar':
                 sys.stdout.write("\t%s\n" % cancal)
-                utils.print_info("Number of potential calibrator scans: %d" % 
+                utils.print_info("Number of potential calibrator scans: %d" %
                                  len(calscans), 1)
-                msg = "    %s" % "\n    ".join(["Obs ID: %d; File ID: %d; %s" % 
+                msg = "    %s" % "\n    ".join(["Obs ID: %d; File ID: %d; %s" %
                                                 (calrow['obs_id'], calrow['file_id'],
-                                                 calrow['filename']) 
+                                                 calrow['filename'])
                                                 for calrow in calscans
                                                 if type(calrow) is not str])
                 utils.print_info(msg, 2)
             else:
                 sys.stdout.write("\n")
-            if args.retry:
+            if retry_uncal:
                 for desc in reduce_data.get_all_descendents(row['file_id'], db):
                     if (desc['status'] == 'failed') and (desc['stage'] == 'calibrated'):
                         # File has been calibrated, but it failed. Do not retry.
@@ -107,7 +134,7 @@ def main():
                 if (cancal and (row['status'] != 'failed')) or (not cancal and (row['status'] == 'calfail')):
                     retry(db, row['file_id'])
                     utils.print_info("Will retry calibration of file %d" % row['file_id'], 1)
-        if args.retry:
+        if retry_uncal:
             for name in psrnameset:
                 try:
                     reduce_data.reattempt_calibration(db, name)
@@ -117,29 +144,4 @@ def main():
 
 
 if __name__ == '__main__':
-    parser = utils.DefaultArguments(description="For each matching file print "
-                                                "if it can be polarization "
-                                                "calibrated (i.e. sufficient "
-                                                "calibration scans are registered "
-                                                "in the database)")
-    parser.add_argument('-p', '--psr', dest='psrnames',
-                        type=str, action='append',
-                        help="The pulsar to grab files for. "
-                             "NOTE: Multiple '-p'/'--psr' options may be given")
-    parser.add_argument('--sort', dest='sortkeys', metavar='SORTKEY', \
-                        action='append', default=['added'], \
-                        help="DB column to sort raw data files by. Multiple " \
-                            "--sort options can be provided. Options " \
-                            "provided later will take precedent " \
-                            "over previous options. (Default: Sort " \
-                            "by 'added'.)")
-    parser.add_argument("-r", "--retry-uncal", dest='retry',
-                        action='store_true',
-                        help="Cleaned files that passed quality control "
-                             "that can be calibrated, but have not been "
-                             "should be marked as 'calfail' instead of "
-                             "'new' so calibration will be reattempted.")
-    parser.add_argument("--fmt", dest='fmt', default='%(filename)s',
-                        help="Write custom format for each matching file.")
-    args = parser.parse_args()
     main()

@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
+import click
 
 from coast_guard import utils
 from coast_guard import database
+from coast_guard import cli_common
 
 import matplotlib.pyplot as plt
 
@@ -33,9 +35,14 @@ def get_obs_mjds(db, psrs):
     return obs_mjds
 
 
-def main():
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.argument('pulsars', nargs=-1, required=True)
+@cli_common.standard_options
+@cli_common.debug_options
+def main(pulsars):
+    """Plot cadence of pulsar observations."""
     db = database.Database()
-    obs_mjds = get_obs_mjds(db, args.pulsars)
+    obs_mjds = get_obs_mjds(db, pulsars)
     mjds = []
     ipsr = []
     psrnames = sorted(obs_mjds.keys())
@@ -49,9 +56,4 @@ def main():
     plt.show()
 
 if __name__ == '__main__':
-    parser = utils.DefaultArguments(description="Plot cadence of pulsar "
-                                                "observations.")
-    parser.add_argument('pulsars', type=str, nargs='+',
-                        help='Pulsar to plot cadence for.')
-    args = parser.parse_args()
     main()

@@ -2,12 +2,25 @@
 
 import os
 
+import click
+
 from coast_guard import utils
 from coast_guard import database
+from coast_guard import cli_common
 
 
-def main():
-    psrname = utils.get_prefname(args.psr)
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.option("-n", "--dryrun", "dryrun", is_flag=True,
+                help="Show some information and do not delete "
+                     "files or database rows. "
+                     "(Default: delete files/rows)")
+@click.option("-p", "--psr", "psr", required=True,
+                help="Pulsar for which to find entries to delete.")
+@cli_common.standard_options
+@cli_common.debug_options
+def main(dryrun, psr):
+    """Delete recent files."""
+    psrname = utils.get_prefname(psr)
     print("Will delete database rows (and referenced files) " \
           "for source name %s" % psrname)
 
@@ -77,7 +90,7 @@ def main():
         print("There are %d entries to be remove from diagnostics table" % \
             len(diagrows))
 
-        if not args.dryrun:
+        if not dryrun:
             # Remove diagnostics entries
             print("Removing diagnostic rows")
             for row in utils.show_progress(diagrows, width=50, tot=len(diagrows)):
@@ -140,15 +153,6 @@ def main():
 
 
 if __name__ == '__main__':
-    parser = utils.DefaultArguments(description="Delete recent files.")
-    parser.add_argument("-n", "--dryrun", dest="dryrun", action="store_true",
-                        help="Show some information and do not delete "
-                             "files or database rows. "
-                             "(Default: delete files/rows)")
-    parser.add_argument("-p", "--psr", dest="psr",
-                        required=True,
-                        help="Pulsar for which to find entries to delete.")
-    args = parser.parse_args()
     main()
 
 

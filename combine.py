@@ -16,6 +16,7 @@ import collections
 import datetime
 import shutil
 
+import click
 import numpy as np
 
 from coast_guard import utils
@@ -23,6 +24,7 @@ from coast_guard import clean
 from coast_guard import config
 from coast_guard import errors
 from coast_guard import debug
+from coast_guard import cli_common
 
 
 SUBINT_GLOB = '[0-9]'*4+'-'+'[0-9]'*2+'-'+'[0-9]'*2+'-' + \
@@ -441,41 +443,73 @@ def check_files(infns):
     utils.enforce_file_consistency(infns, 'name', warn=False)
 
 
-def main():
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.argument('subdirs', nargs=-1)
+@click.option('-f', '--group-file', 'group_file', type=str, default=None,
+                help="Combine files/directories listed in group file. "
+                     "These files can be output by combine.py. "
+                     "(Default: Combine directories listed on command line.)")
+#    click.option('-o', '--outname', 'outfn', type=str, \
+#                        help="The output (combined) file's name. " \
+#                            "(Default: '%%(name)s_%%(yyyymmdd)s_%%(secs)05d_combined.ar')", \
+#                        default="%(name)s_%(yyyymmdd)s_%(secs)05d_combined.ar")
+@click.option('--max-span', 'combine_maxspan', type=int, default=None,
+                help="Max number of seconds a combined archive can span. "
+                     "(Default: %d s)" % config.cfg.combine_maxspan)
+@click.option('--max-gap', 'combine_maxgap', type=int, default=None,
+                help="Max gap (in seconds) between archives before starting "
+                     "a new combined archive. (Default %d s)" %
+                        config.cfg.combine_maxgap)
+@click.option('--type', 'filetype', type=click.Choice(list(FILETYPE_SPECIFICS.keys())),
+                default='subint',
+                help="Type of files being grouped. Can be 'subint',"
+                        "or 'single'. (Default: 'subint')")
+@click.option('--write-listing', 'do_write_listing', is_flag=True, default=False,
+                help="Write text file containing listing of files to combine.")
+@click.option('--no-combine', 'no_combine', is_flag=True, default=False,
+                help="Don't actually combine files.")
+@cli_common.standard_options
+@cli_common.debug_options
+def main(subdirs, group_file, combine_maxspan, combine_maxgap, filetype,
+            do_write_listing, no_combine):
+    """Given a list of frequency sub-band directories containing sub-ints to
+        combine, group them and create combined archives.
+    """
     print("")
     print("        combine.py")
     print("     Patrick  Lazarus")
     print("")
-    
-    if len(args.subdirs):
-        print("Number of input sub-band directories: %d" % len(args.subdirs))
-    elif args.group_file is None:
+
+    subdirs = list(subdirs)
+    if len(subdirs):
+        print("Number of input sub-band directories: %d" % len(subdirs))
+    elif group_file is None:
         raise errors.InputError("No sub-band directories to combine and no group file provided!")
 
-    if args.group_file is not None:
-        usedirs, subints = read_listing(args.group_file)
+    if group_file is not None:
+        usedirs, subints = read_listing(group_file)
         groups = [subints]
     else:
         # Group directories
-        usedirs, groups = group_subband_dirs(args.subdirs, \
-                    maxspan=args.combine_maxspan, 
-                    maxgap=args.combine_maxgap, \
-                    filetype=args.filetype)
-    
+        usedirs, groups = group_subband_dirs(subdirs, \
+                    maxspan=combine_maxspan,
+                    maxgap=combine_maxgap, \
+                    filetype=filetype)
+
     # Work in a temporary directory
     tmpdir = tempfile.mkdtemp(suffix="_combine",
                               dir=config.tmp_directory)
     # Combine files
     outfns = []
     for subints in groups:
-        if not args.no_combine:
+        if not no_combine:
             preppeddirs = prepare_subints(usedirs, subints,
                                           baseoutdir=os.path.join(tmpdir, 'data'),
                                           trimpcnt=6.25)
             outfn = combine_subints(preppeddirs, subints,
                                     outdir=os.getcwd())
             outfns.append(outfn)
-        if args.write_listing:
+        if do_write_listing:
             write_listing(usedirs, subints, "list.txt")
     shutil.rmtree(tmpdir)
     if outfns:
@@ -485,36 +519,4 @@ def main():
 
 
 if __name__=="__main__":
-    parser = utils.DefaultArguments(usage="%(prog)s [OPTIONS] DIRS-TO-COMBINE", \
-                        description="Given a list of frequency sub-band " \
-                                    "directories containing sub-ints to " \
-                                    "combine, group them and create " \
-                                    "combined archives.")
-    parser.add_argument('subdirs', nargs='*', help="Sub-band directories " \
-                            "containing subints to combine.")
-    parser.add_argument('-f', '--group-file', dest='group_file', type=str,
-                        help="Combine files/directories listed in group file. "
-                             "These files can be output by combine.py. "
-                             "(Default: Combine directories listed on command line.)")
-#    parser.add_argument('-o', '--outname', dest='outfn', type=str, \
-#                        help="The output (combined) file's name. " \
-#                            "(Default: '%%(name)s_%%(yyyymmdd)s_%%(secs)05d_combined.ar')", \
-#                        default="%(name)s_%(yyyymmdd)s_%(secs)05d_combined.ar")
-    parser.add_argument('--max-span', dest='combine_maxspan', type=int, \
-                        help="Max number of seconds a combined archive can span. " \
-                             "(Default: %d s)" % config.cfg.combine_maxspan)
-    parser.add_argument('--max-gap', dest='combine_maxgap', type=int, \
-                        help="Max gap (in seconds) between archives before starting " \
-                             "a new combined archive. (Default %d s)" % \
-                                config.cfg.combine_maxgap)
-    parser.add_argument('--type', dest='filetype', type=str, \
-                        choices=list(FILETYPE_SPECIFICS.keys()), \
-                        help="Type of files being grouped. Can be 'subint',"
-                                "or 'single'. (Default: 'subint')", \
-                        default='subint')
-    parser.add_argument('--write-listing', dest='write_listing', action='store_true', 
-                        help="Write text file containing listing of files to combine.")
-    parser.add_argument('--no-combine', dest='no_combine', action='store_true',
-                        help="Don't actually combine files.")
-    args = parser.parse_args()
     main()

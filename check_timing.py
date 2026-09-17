@@ -4,6 +4,7 @@ import os
 import glob
 import shutil
 
+import click
 import numpy as np
 
 from coast_guard import utils
@@ -11,6 +12,7 @@ from coast_guard import list_files
 from coast_guard import make_template
 from coast_guard import errors
 from coast_guard import reduce_data
+from coast_guard import cli_common
 
 from toaster.toolkit.timfiles import readers
 from toaster.toolkit.timfiles import formatters
@@ -50,18 +52,35 @@ EXTRA_PARFILE_LINES = ['F2 0 0',
                        'JUMP -grp S110-1_cal']
 
 
-def main():
-    psrname = utils.get_prefname(args.psrname)
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.option('-p', '--psr', 'psrname', type=str, required=True,
+                help='Name of the pulsar to fetch files for.')
+@click.option('-E', '--parfile', 'parfile', type=str,
+                help="Parfile to prepare for checking timing."
+                     "(Default: use parfile from %s" % PARFILE_DIR)
+@click.option('--nchan', 'nchan', type=int, default=1,
+                help="Number of channels to use (both when scrunching "
+                     "and when generating TOAs.; Default=1)")
+@click.option('--effix', 'effix', is_flag=True,
+                help="Set site to 'eff_psrix' to get TEMPO2 to "
+                     "use clock correction file that includes the "
+                     "Asterix clock offsets. "
+                     "(Default: keep site=effelsberg)")
+@cli_common.standard_options
+@cli_common.debug_options
+def main(psrname, parfile, nchan, effix):
+    """Check timing of a pulsar."""
+    psrname = utils.get_prefname(psrname)
 
-    if args.nchan == 1:
+    if nchan == 1:
         ext = '.FTp'
         scrunchargs = ['-F']
-    elif args.nchan > 1:
-        ext = '.Tp.F%d' % args.nchan
-        scrunchargs = ['--setnchn', '%d' % args.nchan]
+    elif nchan > 1:
+        ext = '.Tp.F%d' % nchan
+        scrunchargs = ['--setnchn', '%d' % nchan]
     else:
         raise ValueError("Cannot scrunch using negative number of "
-                         "channels (nchan=%d)" % args.nchan)
+                         "channels (nchan=%d)" % nchan)
 
     #psrdirs = dict([(utils.get_prefname(os.path.basename(dd)),
     #                 os.path.basename(dd))
@@ -83,11 +102,11 @@ def main():
     #                "epta-legacy")
 
     # Find parfile
-    if args.parfile is not None:
-        if not os.path.exists(args.parfile):
+    if parfile is not None:
+        if not os.path.exists(parfile):
             raise errors.InputError("Parfile specified (%s) doesn't exist!" %
-                                    args.parfile)
-        inparfn = args.parfile
+                                    parfile)
+        inparfn = parfile
     else:
         # Create parfile
         #inparfn = os.path.join('/homes/plazarus/research/epta-legacy/',
@@ -297,21 +316,4 @@ def main():
 
 
 if __name__ == '__main__':
-    parser = utils.DefaultArguments(description="Check timing of a pulsar.")
-    parser.add_argument('-p', '--psr', dest='psrname', type=str,
-                        required=True,
-                        help='Name of the pulsar to fetch files for.')
-    parser.add_argument('-E', '--parfile', dest='parfile', type=str,
-                        help="Parfile to prepare for checking timing."
-                             "(Default: use parfile from %s" % PARFILE_DIR)
-    parser.add_argument('--nchan', dest='nchan', type=int,
-                        default=1,
-                        help="Number of channels to use (both when scrunching "
-                             "and when generating TOAs.; Default=1)")
-    parser.add_argument('--effix', dest='effix', action='store_true',
-                        help="Set site to 'eff_psrix' to get TEMPO2 to "
-                             "use clock correction file that includes the "
-                             "Asterix clock offsets. "
-                             "(Default: keep site=effelsberg)")
-    args = parser.parse_args()
     main()

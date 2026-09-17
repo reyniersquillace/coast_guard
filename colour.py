@@ -7,8 +7,9 @@ A module for colourizing text output to the terminal.
 Patrick Lazarus, August 28th, 2009
 """
 
-import optparse
 import types
+
+import click
 
 from coast_guard import config
 
@@ -193,25 +194,32 @@ class ColourizedOutput(object):
         self.fileobject.write(colour.cstring(s), *cargs, **ckwargs)
 
 
-def main():
+_presets = sorted(pre for pre in preset_codes.keys() \
+                if pre not in ("default", "reset"))
+
+
+@click.command()
+@click.argument('text', nargs=-1)
+@click.option('-s', '--set', 'attrs', multiple=True, \
+                type=click.Choice(sorted(attributes.keys())), \
+                help="Set a text attribute. Possible attributes to set "
+                     "are: %s. Can be given multiple times." %
+                     ", ".join(sorted(attributes.keys())))
+@click.option('-f', '--fg', default='default', \
+                help='Foreground text colour.')
+@click.option('-b', '--bg', default='default', \
+                help='Background text colour.')
+@click.option('-p', '--preset', default=None, \
+                help="Use a preset colour scheme. Other options will be "
+                     "ignored. Presets are: '%s'" % "', '".join(_presets))
+def main(text, attrs, fg, bg, preset):
     # String to print is left over command line arguments
-    s = " ".join(args)
-    cprint(s, preset=options.preset, fg=options.fg, bg=options.bg, \
-                **options.attributes)
+    s = " ".join(text)
+    attributes_to_set = dict((attr, True) for attr in attrs)
+    cprint(s, preset=preset, fg=fg, bg=bg, **attributes_to_set)
 
 
 if __name__ == '__main__':
-    presets = [cstring(pre, preset=pre) for pre in sorted(preset_codes.keys()) \
-                    if pre not in ("default", "reset")] 
-    parser = optparse.OptionParser()
-    parser.add_option('-s', '--set', dest='toset', type='string', action='callback', callback=parse_attributes, help="Set text attributes. Possible attributes to set are: defaut, bold, dim, underline, blink, reverse and hidden.")
-    parser.add_option('-f', '--fg', dest='fg', action='store', help='Forground text colour.', default='default')
-    parser.add_option('-b', '--bg', dest='bg', action='store', help='Background text colour.', default='default')
-    parser.add_option('-p', '--preset', dest='preset', action='store', help="Use a preset colour scheme. Other options will be ignored. Presets are: '%s'" % "', '".join(presets), default=None)
-    options, args = parser.parse_args()
-    # Ensure that options.attributes exists even if not attributes are set
-    if not hasattr(parser.values, 'attributes'):
-        # Create empty dictionary for text attributes
-        setattr(parser.values, 'attributes', {})
+    main()
 
     main()

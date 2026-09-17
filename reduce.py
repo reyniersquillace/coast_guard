@@ -6,7 +6,6 @@ produce TOAs.
 
 Patrick Lazarus, Nov. 22, 2011
 """
-import optparse
 import datetime
 import os.path
 import os
@@ -14,10 +13,11 @@ import tempfile
 import sys
 import traceback
 
+import click
 import numpy as np
 import matplotlib
-# 'reduce.py' is not meant to used interactively, so choose 
-# a non-interactive matplotlib backend. This is a bit of a hack, 
+# 'reduce.py' is not meant to used interactively, so choose
+# a non-interactive matplotlib backend. This is a bit of a hack,
 # in part because use(...) must be called before importing pyplot.
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -31,6 +31,7 @@ from coast_guard import cleaners
 from coast_guard import combine
 from coast_guard import config
 from coast_guard import errors
+from coast_guard import cli_common
 
 class ReductionLog(object):
     """An object to log reduction of timing data.
@@ -238,32 +239,50 @@ class ReductionJob(object):
         return cleanarfs, toastrs
 
 
-def main():
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.argument('files', nargs=-1)
+@click.option('-o', '--outname', 'outfn', type=str,
+                default="%(name)s_%(yyyymmdd)s_%(secs)05d_reduced.ar",
+                help="The output (reduced) file's name. "
+                    "(Default: '%(name)s_%(yyyymmdd)s_%(secs)05d_reduced.ar')")
+@cli_common.file_selection_options
+@click.option('--getafix', 'is_asterix', is_flag=True, default=False,
+                help="If the data are from Effelsberg's Asterix backend "
+                    "guess the receiver used and correct the output "
+                    "archive's header. (Default: False)")
+@click.option('--notoas', 'notoas', is_flag=True, default=False,
+                help="Do not make TOAs. (Default: Make TOAs)")
+@cli_common.standard_options
+@cli_common.debug_options
+def main(files, outfn, from_glob, excluded_files, excluded_by_glob,
+            is_asterix, notoas):
+    """Given a list of PSRCHIVE file names reduce them so they are ready to
+        generate TOAs. A single output file is produced.
+    """
     print("")
     print("        reduce.py")
     print("     Patrick  Lazarus")
     print("")
-    file_list = args + options.from_glob
-    to_exclude = options.excluded_files + options.excluded_by_glob
-    to_reduce = utils.exclude_files(file_list, to_exclude)
+    to_reduce = cli_common.resolve_file_list(files, from_glob, \
+                                        excluded_files, excluded_by_glob)
     print("Number of input files: %d" % len(to_reduce))
-    
+
     if not to_reduce:
         raise errors.BadFile("No files to reduce!")
 
     to_reduce = [utils.ArchiveFile(fn) for fn in to_reduce]
-    
+
     # Read configurations
     config.cfg.load_configs_for_archive(to_reduce[0])
-  
-    job = ReductionJob(to_reduce, options.outfn, is_asterix=options.is_asterix, \
-                        maketoas=options.maketoas)
+
+    job = ReductionJob(to_reduce, outfn, is_asterix=is_asterix, \
+                        maketoas=not notoas)
     outfns, toastrs = job.run()
 
     print("Output file names:")
     for outfn in outfns:
         print("    %s" % outfn.fn)
-    
+
     if toastrs:
         print("TOAs:")
         print("\n".join(toastrs))
@@ -271,41 +290,4 @@ def main():
         print("No TOAs")
 
 if __name__=="__main__":
-    parser = utils.DefaultOptions(usage="%prog [OPTIONS] FILES ...", \
-                        description="Given a list of PSRCHIVE file names " \
-                                    "reduce them so they are ready to " \
-                                    "generate TOAs. A single output file " \
-                                    "is produced.")
-    parser.add_option('-o', '--outname', dest='outfn', type='string', \
-                        help="The output (reduced) file's name. " \
-                            "(Default: '%(name)s_%(yyyymmdd)s_%(secs)05d_reduced.ar')", \
-                        default="%(name)s_%(yyyymmdd)s_%(secs)05d_reduced.ar")
-    parser.add_option('-g', '--glob', dest='from_glob', action='callback', \
-                        callback=utils.get_files_from_glob, default=[], \
-                        type='string', \
-                        help="Glob expression of input files. Glob expression " \
-                            "should be properly quoted to not be expanded by " \
-                            "the shell prematurely. (Default: no glob " \
-                            "expression is used.)") 
-    parser.add_option('-x', '--exclude-file', dest='excluded_files', \
-                        type='string', action='append', default=[], \
-                        help="Exclude a single file. Multiple -x/--exclude-file " \
-                            "options can be provided. (Default: don't exclude " \
-                            "any files.)")
-    parser.add_option('--exclude-glob', dest='excluded_by_glob', action='callback', \
-                        callback=utils.get_files_from_glob, default=[], \
-                        type='string', \
-                        help="Glob expression of files to exclude as input. Glob " \
-                            "expression should be properly quoted to not be " \
-                            "expanded by the shell prematurely. (Default: " \
-                            "exclude any files.)")
-    parser.add_option('--getafix', dest='is_asterix', action='store_true', \
-                        default=False, \
-                        help="If the data are from Effelsberg's Asterix backend " \
-                            "guess the receiver used and correct the output " \
-                            "archive's header. (Default: False)")
-    parser.add_option('--notoas', dest='maketoas', action='store_false', \
-                        default=True, \
-                        help="Do not make TOAs. (Default: Make TOAs)")
-    options, args = parser.parse_args()
     main()

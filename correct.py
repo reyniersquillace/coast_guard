@@ -6,6 +6,7 @@ import datetime
 import pprint
 import shutil
 
+import click
 import numpy as np
 
 import pyriseset as rs
@@ -17,6 +18,7 @@ from coast_guard import utils
 from coast_guard import clean_utils
 from coast_guard import errors
 from coast_guard import database
+from coast_guard import cli_common
 
 EFF = rs.sites.load('effelsberg')
 UTC_TZ = pytz.utc
@@ -505,45 +507,46 @@ def is_close(hr1, hr2, delta=1):
     return abs(hr1-hr2) < (delta/3600.0)
 
 
-def main():
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.argument('files', nargs=-1)
+@click.option('--obslog-line', 'obslog_line', type=str, default=None,
+                help="Line from observing log to use. "
+                    "(Default: search observing logs for "
+                    "the appropriate line.)")
+@click.option('-b', '--backend-name', 'backend_name', type=str,
+                default='asterix',
+                help="Name of backend to use. (Default: 'asterix')")
+@click.option('-o', '--outname', 'outfn', type=str,
+                default=config.outfn_template+".corr",
+                help="The output (reduced) file's name. "
+                    "(Default: '%s.corr')" %
+                        config.outfn_template.replace("%", "%%"))
+@cli_common.standard_options
+@cli_common.debug_options
+def main(files, obslog_line, backend_name, outfn):
+    """Correct header of Asterix data files."""
     print("")
     print("        correct.py")
     print("     Patrick  Lazarus")
     print("")
-    
-    if len(args.files):
-        print("Number of input files: %d" % len(args.files))
+
+    if len(files):
+        print("Number of input files: %d" % len(files))
     else:
         raise errors.InputError("No files to correct!")
 
-    if args.obslog_line is not None:
-        obsinfo = parse_obslog_line(args.obslog_line)
+    if obslog_line is not None:
+        obsinfo = parse_obslog_line(obslog_line)
     else:
         obsinfo = None
 
-    for fn in args.files:
+    for fn in files:
         corrfn, corrstr, note = correct_header(fn, obsinfo=obsinfo,
-                                               outfn=args.outfn,
-                                               backend=args.backend_name)
+                                               outfn=outfn,
+                                               backend=backend_name)
         print("    Output corrected file: %s" % corrfn)
         print("        Notes: %s" % note)
 
 
 if __name__ == '__main__':
-    parser = utils.DefaultArguments(description="Correct header of Asterix " \
-                                    "data files.")
-    parser.add_argument('files', nargs='*', help="Files to correct.")
-    parser.add_argument('--obslog-line', dest='obslog_line', type=str, \
-                        help="Line from observing log to use. " \
-                            "(Default: search observing logs for " \
-                            "the appropriate line.)")
-    parser.add_argument('-b', '--backend-name', dest='backend_name', type=str, \
-                        help="Name of backend to use. (Default: 'asterix')", \
-                        default='asterix')
-    parser.add_argument('-o', '--outname', dest='outfn', type=str, \
-                        help="The output (reduced) file's name. " \
-                            "(Default: '%s.corr')" % \
-                                config.outfn_template.replace("%", "%%"), \
-                        default=config.outfn_template+".corr")
-    args = parser.parse_args()
     main()

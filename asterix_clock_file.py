@@ -5,11 +5,13 @@ import sys
 import os.path
 import warnings
 
+import click
 import numpy as np
 from scipy import interpolate
 
 from coast_guard import utils
 from coast_guard import errors
+from coast_guard import cli_common
 
 from pyriseset import utils as rsutils
 
@@ -179,24 +181,72 @@ def maser_gps_fit_factory(allparams):
     return get_correction
 
 
-def main():
-    if args.outfn is not None:
-        outfile = open(args.outfn, 'w')
+def _cb_no_clock_offsets(ctx, param, value):
+    return not value
+
+
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.option("-o", "outfn", default=None,
+                help="Output file. (Default: stdout)")
+@click.option("-s", "--start-mjd", "start_mjd", type=int, default=55562,
+                help="MJD for start of clock correction file. "
+                     "(Default: 55562 - i.e. Jan. 1, 2011, "
+                     "the year Asterix was installed)")
+@click.option("-e", "--end-mjd", "end_mjd", type=int, default=None,
+                help="MJD for end of clock correction file. "
+                     "(Default: today)")
+@click.option("--no-clock-offsets", "include_clock_offsets", is_flag=True,
+                callback=_cb_no_clock_offsets,
+                help="Do not include the Asterix clock offsets in "
+                     "the clock corrections. (Default: include "
+                     "Asterix clock offsets.)")
+@click.option("--include", "include", type=str, default=None,
+                help="An existing clock file to include in the "
+                     "newly generate clock file. (Default: don't "
+                     "include any corrections from another file)")
+@click.option("-D", "--day-interval", "interval", type=str, default='monthly',
+                help="Interval between days on which to include "
+                     "clock corrections. Value can be: 'monthly', "
+                     "'weekly', 'daily', an integer, or the name "
+                     "of a file containing MJDs. (Default: Monthly)")
+@click.option("-n", "--num-per-day", "num_per_day", type=int, default=3,
+                help="Number of corrections to include for each day. "
+                     "NOTE: This is ignored if the '-d/--day-interval' "
+                     "argument is provided with a file containing a "
+                     "list of MJDs. (Default: 3 corrections per day)")
+@click.option("-I", "--interp-method", "interp_method", type=str, default="nearest",
+                help="Method to use when interpolating MASER-to-GPS difference data. "
+                     "Recognized values are: "
+                     "'median' - Median of the daily values; "
+                     "'linear' - Linear interpolation; "
+                     "'nearest' - Use the nearest data point; "
+                     "'quadratic' - 2nd order spline; "
+                     "'cubic' - 3rd order spline; "
+                     "otherwise, assume name of file containing "
+                     "polynomial coefficients that provide the "
+                     "difference between the maser and GPS. "
+                     "(Default: 'nearest')")
+@cli_common.standard_options
+@cli_common.debug_options
+def main(outfn, start_mjd, end_mjd, include_clock_offsets, include,
+         interval, num_per_day, interp_method):
+    if outfn is not None:
+        outfile = open(outfn, 'w')
     else:
         outfile = sys.stdout
 
-    if args.interp_method not in ("linear", "nearest", "quadratic", "cubic", "median"):
+    if interp_method not in ("linear", "nearest", "quadratic", "cubic", "median"):
         # Assume a file of paramters is provided
-        fitfn = args.interp_method
+        fitfn = interp_method
         if os.path.isfile(fitfn):
-            args.interp_method = "file"
+            interp_method = "file"
             fitparams = np.loadtxt(fitfn, unpack=False)
             get_correction = maser_gps_fit_factory(fitparams)
         else:
             raise ValueError("Interpolation method (%s) is not recognized "
-                             "nor is it a file of parameters!" % args.interp_method)
+                             "nor is it a file of parameters!" % interp_method)
 
-    if args.include_clock_offsets:
+    if include_clock_offsets:
         clock_offsets = CLOCK_OFFSETS
         clock_mjds = [float(clk[0]) for clk in CLOCK_OFFSETS if np.isfinite(clk[0])] + \
                      [float(clk[1]) for clk in CLOCK_OFFSETS if np.isfinite(clk[1])]
@@ -205,20 +255,19 @@ def main():
         clock_offsets = []
         clock_mjds = []
 
-    end_mjd = args.end_mjd
     if end_mjd is None:
         end_mjd = rsutils.mjdnow()
-    mjds = get_mjds(args.start_mjd, end_mjd, 
-                    args.interval, args.num_per_day, 
+    mjds = get_mjds(start_mjd, end_mjd,
+                    interval, num_per_day,
                     additional=clock_mjds)
     curr = None
-    if args.include_clock_offsets:
+    if include_clock_offsets:
         outfile.write("# UTC(EFFIX) UTC(GPS)\n")
         outfile.write("# Effelsberg Asterix/PSRix clock correction file\n")
     else:
         outfile.write("# UTC(EFF) UTC(GPS)\n")
         outfile.write("# Effelsberg clock correction file\n")
-    outfile.write("# Generated on %s with %s (by P. Lazarus) \n" % 
+    outfile.write("# Generated on %s with %s (by P. Lazarus) \n" %
                   (datetime.datetime.now().strftime("%B %d, %Y"), __file__))
     outfile.write("# The following clock offsets are included:\n")
     if clock_offsets:
@@ -227,9 +276,9 @@ def main():
     else:
         outfile.write("#    None\n")
     outfile.write("#\n")
-   
-    if args.include:
-        with open(args.include, 'r') as inclff:
+
+    if include:
+        with open(include, 'r') as inclff:
             for line in inclff:
                 line = line.strip()
                 if not line or line.startswith('#'):
@@ -240,11 +289,11 @@ def main():
 
     # Include clock offsets
     clkoff = 0
-           
+
     for mjd in mjds:
         imjd = int(mjd)
         try:
-            if args.interp_method == "file":
+            if interp_method == "file":
                 # File containing parameters
                 # get_correction is defined above when the fit-file is read
                 pass
@@ -253,11 +302,11 @@ def main():
                     utils.print_info("Getting maser corrections for MJD %05d" % imjd, 1)
                     # Get corrections
                     data = get_maser_data(imjd)
-                    if args.interp_method == "median":
+                    if interp_method == "median":
                         get_correction = lambda mjd: np.median(data[:,1])
-                    elif args.interp_method in ("linear", "nearest", "quadratic", "cubic"):
-                        get_correction = interpolate.interp1d(data[:,0], data[:,1], 
-                                                              kind=args.interp_method)
+                    elif interp_method in ("linear", "nearest", "quadratic", "cubic"):
+                        get_correction = interpolate.interp1d(data[:,0], data[:,1],
+                                                              kind=interp_method)
                 curr = imjd
             correction = get_correction(mjd)
             if correction > 0.5:
@@ -292,58 +341,9 @@ def main():
 
     # Write clock correction for far in future (to allow for extrapolation?)
     outfile.write("60000.00000 0.00000e+00\n")
-    if args.outfn is not None:
+    if outfn is not None:
         outfile.close()
 
 
 if __name__ == '__main__':
-    parser = utils.DefaultArguments(description="Write a clock correction " 
-                                                "file for Effelsberg.")
-    parser.add_argument("-o", dest='outfn', default=None,
-                        help="Output file. (Default: stdout)")
-    parser.add_argument("-s", "--start-mjd", dest='start_mjd', 
-                        type=int, default=55562,
-                        help="MJD for start of clock correction file. "
-                             "(Default: 55562 - i.e. Jan. 1, 2011, "
-                             "the year Asterix was installed)")
-    parser.add_argument("-e", "--end-mjd", dest='end_mjd',
-                        type=int, default=None,
-                        help="MJD for end of clock correction file. "
-                             "(Default: today)")
-    parser.add_argument("--no-clock-offsets", dest="include_clock_offsets",
-                        action='store_false',
-                        help="Do not include the Asterix clock offsets in "
-                             "the clock corrections. (Default: include "
-                             "Asterix clock offsets.)")
-    parser.add_argument("--include", dest='include', 
-                        type=str, default=None,
-                        help="An existing clock file to include in the "
-                             "newly generate clock file. (Default: don't "
-                             "include any corrections from another file)")
-    parser.add_argument("-D", "--day-interval", dest='interval',
-                        type=str, default='monthly',
-                        help="Interval between days on which to include " 
-                             "clock corrections. Value can be: 'monthly', " 
-                             "'weekly', 'daily', an integer, or the name "
-                             "of a file containing MJDs. (Default: Monthly)")
-    parser.add_argument("-n", "--num-per-day", dest='num_per_day',
-                        type=int, default=3,
-                        help="Number of corrections to include for each day. "
-                             "NOTE: This is ignored if the '-d/--day-interval' "
-                             "argument is provided with a file containing a "
-                             "list of MJDs. (Default: 3 corrections per day)")
-    parser.add_argument("-I", "--interp-method", dest='interp_method',
-                        type=str, default="nearest",
-                        help="Method to use when interpolating MASER-to-GPS difference data. "
-                             "Recognized values are: "
-                             "'median' - Median of the daily values; "
-                             "'linear' - Linear interpolation; "
-                             "'nearest' - Use the nearest data point; "
-                             "'quadratic' - 2nd order spline; "
-                             "'cubic' - 3rd order spline; "
-                             "otherwise, assume name of file containing "
-                             "polynomial coefficients that provide the "
-                             "difference between the maser and GPS. "
-                             "(Default: 'nearest')")
-    args = parser.parse_args()
     main()

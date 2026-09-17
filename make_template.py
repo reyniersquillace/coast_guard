@@ -11,10 +11,13 @@ import os
 import shutil
 import tempfile
 
+import click
+
 from coast_guard import config
 from coast_guard import utils
 from coast_guard import list_files
 from coast_guard import errors
+from coast_guard import cli_common
 
 
 def get_files_to_combine(rows, max_span=1, min_snr=0):
@@ -120,40 +123,36 @@ def make_template(outdir, psrname, stage, rcvr, max_span=1, min_snr=0):
     return outbasenm+'.std'
 
 
-def main():
-    if args.outdir is None:
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.option('-p', '--psr', 'psr', type=str, required=True,
+                help="The pulsar to create a template for.")
+@click.option('--rcvr', 'rcvr', type=str, required=True,
+                help="The name of the receiver for "
+                     "which to make a template.")
+@click.option('-C', "--calibrated", 'calibrated', is_flag=True,
+                help="Make template from calibrated pulsar observations.")
+@click.option("-m", "--min-snr", 'min_snr', type=float, default=0,
+                help="Minimum archive SNR to consider when "
+                     "adding data files. (Default: no minimum)")
+@click.option("-g", "--max-span", 'max_span', type=float, default=1,
+                help="Maximum span, in days, between observations when "
+                     "adding data files. (Default: 1 day)")
+@click.option("-o", "--output-dir", 'outdir', type=str,
+                help="Output directory. (Default: current directory)")
+@cli_common.standard_options
+@cli_common.debug_options
+def main(psr, rcvr, calibrated, min_snr, max_span, outdir):
+    """Combine multiple files close in MJD to create a high-SNR
+        profile to generate a template using paas
+    """
+    if outdir is None:
         outdir = os.getcwd()
-    else:
-        outdir = args.outdir
-    psrname = utils.get_prefname(args.psr)
-    stdfn = make_template(outdir, psrname, args.stage, args.rcvr,
-                          args.max_span, args.min_snr)
+    stage = 'calibrated' if calibrated else 'cleaned'
+    psrname = utils.get_prefname(psr)
+    stdfn = make_template(outdir, psrname, stage, rcvr,
+                          max_span, min_snr)
     print("Made template: %s", stdfn)
 
 
 if __name__ == '__main__':
-    parser = utils.DefaultArguments(description="Combine multiple files close "
-                                                "in MJD to create a high-SNR "
-                                                "profile to generate a template "
-                                                "using paas")
-    parser.add_argument('-p', '--psr', dest='psr', type=str, 
-                        required=True,
-                        help="The pulsar to create a template for.")
-    parser.add_argument('--rcvr', dest='rcvr', type=str, required=True,
-                        help="The name of the receiver for "
-                             "which to make a template.")
-    parser.add_argument('-C', "--calibrated", dest='stage', action='store_const',
-                        default='cleaned', const='calibrated',
-                        help="Make template from calibrated pulsar observations.")
-    parser.add_argument("-m", "--min-snr", dest='min_snr',
-                        type=float, default=0,
-                        help="Minimum archive SNR to consider when "
-                             "adding data files. (Default: no minimum)")
-    parser.add_argument("-g", "--max-span", dest='max_span',
-                        type=float, default=1,
-                        help="Maximum span, in days, between observations when "
-                             "adding data files. (Default: 1 day)")
-    parser.add_argument("-o", "--output-dir", dest='outdir', type=str,
-                        help="Output directory. (Default: current directory)")
-    args = parser.parse_args()
     main()

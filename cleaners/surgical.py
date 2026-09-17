@@ -12,6 +12,25 @@ class SurgicalScrubCleaner(cleaners.BaseCleaner):
                     'in the same subint/channel using multiple stats.'
 
     def _set_config_params(self):
+        self.configs.add_param('template', config_types.Str, \
+                         nullable=True, \
+                         help='Path to a 1D or 2D (per-channel) template ' \
+                                'profile to fit and remove from each ' \
+                                'sub-int/channel, instead of self-deriving ' \
+                                'one by summing the archive being cleaned. ' \
+                                'A 2D (per-channel) template lets removal ' \
+                                'account for frequency evolution of the ' \
+                                'pulse profile and/or scattering across ' \
+                                'the band, since each channel is fit ' \
+                                'against its own template slice rather ' \
+                                'than one band-averaged profile. Accepts ' \
+                                'a NumPy \'.npy\' file (1D array of shape ' \
+                                '(nbin,), or 2D array of shape ' \
+                                '(nchan, nbin)), or a PSRCHIVE-loadable ' \
+                                'standard-profile archive (its ' \
+                                'channelisation determines 1D vs 2D). ' \
+                                '(Default: self-derive a 1D template from ' \
+                                'the archive being cleaned.)')
         self.configs.add_param('chanthresh', config_types.FloatVal, \
                          aliases=['cthresh'], \
                          help='The threshold (in number of sigmas) a ' \
@@ -69,6 +88,11 @@ class SurgicalScrubCleaner(cleaners.BaseCleaner):
                             'to be detrended multiple times in sequence, each ' \
                             'time with the next parameter.')
         self.parse_config_string(config.cfg.surgical_default_params)
+        if 'template' not in self.configs:
+            # Guard against an external COASTGUARD_CFG/default.cfg that
+            # predates the 'template' option and doesn't set it in
+            # 'surgical_default_params'.
+            self.configs['template'] = 'None'
 
     def _clean(self, ar):
         patient = ar.clone()
@@ -78,7 +102,13 @@ class SurgicalScrubCleaner(cleaners.BaseCleaner):
         # Remove profile from dedispersed data
         patient.dedisperse()
         data = patient.get_data().squeeze()
-        template = np.apply_over_axes(np.sum, data, (0, 1)).squeeze()
+        if self.configs.template is not None:
+            # Use a user-supplied 1D or 2D (per-channel) template instead
+            # of self-deriving one from this archive.
+            template = clean_utils.load_template(self.configs.template, \
+                                                  nchan=patient.get_nchan())
+        else:
+            template = np.apply_over_axes(np.sum, data, (0, 1)).squeeze()
         clean_utils.remove_profile_inplace(patient, template)
         # re-set DM to 0
         patient.dededisperse()

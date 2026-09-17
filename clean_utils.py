@@ -3,6 +3,7 @@ Useful utility functions for cleaning a PSRCHIVE archive.
 
 Patrick Lazarus, Feb. 14, 2012
 """
+import os
 import warnings
 import multiprocessing
 
@@ -13,6 +14,74 @@ import scipy.optimize
 from . import utils
 from . import config
 from . import errors
+
+
+def load_template(path, nchan=None):
+    """Load a user-supplied 1D or 2D template profile from file.
+
+        This is used by cleaners (e.g. SurgicalScrubCleaner) that support
+        removing a supplied template instead of self-deriving one from the
+        archive being cleaned. Supplying a 2D (per-channel) template lets
+        the profile-removal step account for frequency evolution of the
+        pulse profile and/or scattering across the band, since each
+        channel is then fit against its own template slice instead of a
+        single band-averaged profile.
+
+        Inputs:
+            path: Path to the template. Either:
+                - a NumPy '.npy' file containing a 1D array of shape
+                  (nbin,), for a single band-averaged template; or a 2D
+                  array of shape (nchan, nbin), for a per-channel
+                  template; or
+                - any file loadable by PSRCHIVE as a standard-profile
+                  archive. Its channelisation determines whether a 1D
+                  (nchan==1) or 2D (nchan>1) template is produced.
+            nchan: The number of channels in the archive being cleaned.
+                When given, and the loaded template is 2D, its first
+                dimension is checked against this value.
+                (Default: don't check.)
+
+        Output:
+            template: A 1D (nbin,) or 2D (nchan, nbin) numpy array,
+                ready to be passed to remove_profile/remove_profile_inplace.
+    """
+    if not os.path.isfile(path):
+        raise errors.BadFile("Template file (%s) cannot be found!" % path)
+
+    ext = os.path.splitext(path)[-1].lower()
+    if ext == '.npy':
+        template = np.load(path)
+    else:
+        # Assume the path is a PSRCHIVE-loadable standard-profile archive.
+        import psrchive  # Temporarily, because python bindings
+                         # are not available on all computers
+        tmpl_ar = psrchive.Archive_load(path)
+        tmpl_ar.pscrunch()
+        tmpl_ar.remove_baseline()
+        if tmpl_ar.get_nchan() > 1:
+            # Per-channel template. Preserve channel resolution, but sum
+            # over any sub-integrations.
+            tmpl_ar.tscrunch()
+            template = tmpl_ar.get_data().squeeze()  # (nchan, nbin)
+        else:
+            # Single band-averaged template.
+            tmpl_ar.fscrunch()
+            tmpl_ar.tscrunch()
+            template = tmpl_ar.get_data().squeeze()  # (nbin,)
+
+    template = np.asarray(template, dtype=float).squeeze()
+    if template.ndim not in (1, 2):
+        raise errors.TemplateGenerationError(
+                "Template loaded from '%s' has %d dimensions after "
+                "squeezing; only 1D (nbin,) or 2D (nchan, nbin) "
+                "templates are supported." % (path, template.ndim))
+    if template.ndim == 2 and nchan is not None and template.shape[0] != nchan:
+        raise errors.TemplateGenerationError(
+                "Supplied 2D template (from '%s') has %d channels, but "
+                "the archive being cleaned has %d channels. A "
+                "per-channel template's number of channels must match "
+                "the archive being cleaned." % (path, template.shape[0], nchan))
+    return template
 
 def get_subint_weights(ar):
     return ar.get_weights().sum(axis=1)
@@ -408,8 +477,16 @@ def fit_template(prof, template):
 def remove_profile1d(prof, isub, ichan, template):
     #err = lambda (amp, phs): amp*fft_rotate(template, phs) - prof
     #params, status = scipy.optimize.leastsq(err, [1, 0])
-    
-    err = lambda amp: amp*template - prof
+
+    # 'template' may be a single 1D profile shared by every (isub, ichan)
+    # cell (the traditional self-derived-template behaviour), or a 2D
+    # (nchan, nbin) per-channel template -- e.g. one loaded via
+    # load_template() -- in which case each channel is fit against its
+    # own template slice. This is what lets profile removal account for
+    # frequency evolution of the pulse shape and/or scattering across
+    # the band.
+    tmpl = template[ichan] if template.ndim == 2 else template
+    err = lambda amp: amp*tmpl - prof
     #obj_func = lambda amp: np.sum(err(amp)**2)
     #params = scipy.optimize.fmin(obj_func, [1.0], ftol=1e-12, xtol=1e-12)
     params, status = scipy.optimize.leastsq(err, [1.0])
@@ -446,7 +523,10 @@ def remove_profile(data, nsubs, nchans, template, nthreads=None):
 def remove_profile1d_inplace(prof, isub, ichan, template):
     #err = lambda (amp, phs): amp*fft_rotate(template, phs) - prof
     #params, status = scipy.optimize.leastsq(err, [1, 0])
-    err = lambda amp: amp*template - prof
+    # See remove_profile1d() above: 'template' may be 1D (shared) or
+    # 2D (per-channel).
+    tmpl = template[ichan] if template.ndim == 2 else template
+    err = lambda amp: amp*tmpl - prof
     params, status = scipy.optimize.leastsq(err, [1])
     if status not in (1,2,3,4):
         warnings.warn("Bad status for least squares fit when " \

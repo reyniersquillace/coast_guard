@@ -6,9 +6,12 @@ import datetime
 import shutil
 import operator
 
+import click
+
 from coast_guard import config
 from coast_guard import utils
 from coast_guard import database
+from coast_guard import cli_common
 
 
 def dump_db_entries(db, obs_id, log_ids=None, file_ids=None, diag_ids=None):
@@ -134,10 +137,18 @@ def get_fileinfo(db, obs_id):
     return rows
 
             
-def main():
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.option("--obs-id", "obs_id", type=int, default=None,
+                help="ID of observation to set for reprocessing.")
+@click.option("-n", "--dry-run", "dryrun", is_flag=True,
+                help="Don't actually remove database entries or "
+                     "move files. (Default: remove and move)")
+@cli_common.standard_options
+@cli_common.debug_options
+def main(obs_id, dryrun):
+    """Reset observation to be reprocessed."""
     db = database.Database()
 
-    obs_id = args.obs_id
     obsinfo = get_obsinfo(db, obs_id)
     datestr = utils.mjd_to_datetime(obsinfo['start_mjd']).strftime("%Y%m%d")
     subdirs = [datetime.datetime.now().strftime("%Y%m%dT%H:%M:%S"), datestr, obsinfo['sourcename']]
@@ -182,7 +193,7 @@ def main():
     mysqldumpstr = dump_db_entries(db, obs_id, log_ids, file_ids, diag_ids)
     utils.print_info("MySQL dump:\n%s" % mysqldumpstr, 2)
     
-    if not args.dryrun:
+    if not dryrun:
         try:
             # Make back-up directory
             oldumask = os.umask(0o007)
@@ -259,12 +270,4 @@ def main():
 
 
 if __name__ == '__main__':
-    parser = utils.DefaultArguments(description="Reset observation to be reprocessed.")
-   
-    parser.add_argument("--obs-id", dest='obs_id', type=int,
-                          help="ID of observation to set for reprocessing.")
-    parser.add_argument("-n", "--dry-run", action='store_true', dest='dryrun',
-                        help="Don't actually remove database entries or "
-                             "move files. (Default: remove and move)")
-    args = parser.parse_args()
     main()

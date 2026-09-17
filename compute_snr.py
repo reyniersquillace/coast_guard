@@ -3,11 +3,18 @@
 import os
 import sys
 
+import click
+
 from coast_guard import utils
 from coast_guard import database
+from coast_guard import cli_common
 
 
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@cli_common.standard_options
+@cli_common.debug_options
 def main():
+    """Add SNR to files where it is missing."""
     db = database.Database()
     with db.transaction() as conn:
         select = db.select([db.files]).\
@@ -34,7 +41,4 @@ def main():
 
 
 if __name__ == '__main__':
-    parser = utils.DefaultArguments(description="Add SNR to files where"
-                                                "it is missing.")
-    args = parser.parse_args()
     main()

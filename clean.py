@@ -5,16 +5,13 @@ Given a PSRCHIVE archive clean it up.
 
 Patrick Lazarus, Nov. 11, 2011
 """
-import optparse
 import sys
-import types
 import re
 import shutil
 import os
-import tempfile
-import argparse
 import warnings
 
+import click
 import numpy as np
 import scipy.stats
 import matplotlib.pyplot as plt
@@ -25,6 +22,7 @@ from coast_guard import clean_utils
 from coast_guard import errors
 from coast_guard import cleaners
 from coast_guard import colour
+from coast_guard import cli_common
 
 def dummy(ar):
     """A do-nothing dummy cleaning function.
@@ -558,29 +556,96 @@ def clean_archive(inarf, outfn, clean_re=None, *args, **kwargs):
     return outarf
 
 
-def main():
+def _parse_cleaner_spec(spec):
+    """Parse a '-F/--cleaner' value of the form 'name' or 'name:cfgstr'
+        into (name, cfgstr_or_None). Only the first ':' is significant,
+        since cfgstr itself may legitimately contain ':' (e.g. a
+        FloatPair-typed parameter such as '1.0:2.0').
+    """
+    if ':' in spec:
+        name, cfgstr = spec.split(':', 1)
+    else:
+        name, cfgstr = spec, None
+    return name, cfgstr
+
+
+def _cb_cleaner_queue(ctx, param, value):
+    """click callback for '-F/--cleaner': build the (name, [cfgstrs])
+        queue that main() consumes, in the order the options were given.
+    """
+    queue = []
+    for spec in value:
+        name, cfgstr = _parse_cleaner_spec(spec)
+        queue.append((name, [cfgstr] if cfgstr else []))
+    return queue
+
+
+def _cb_help_cleaner(ctx, param, value):
+    if value:
+        cleaner = cleaners.load_cleaner(value)
+        click.echo(cleaner.get_help(full=True))
+        ctx.exit(0)
+
+
+def _cb_list_cleaners(ctx, param, value):
+    if value:
+        colour.cprint("Available Cleaners:", \
+                        bold=True, underline=True)
+        for name in sorted(cleaners.registered_cleaners):
+            cleaner = cleaners.load_cleaner(name)
+            click.echo(cleaner.get_help())
+        ctx.exit(0)
+
+
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.argument('files', nargs=-1)
+@click.option('-o', '--outname', 'outfn', type=str, \
+                default="%(name)s_%(yyyymmdd)s_%(secs)05d_cleaned.ar", \
+                help="The output (reduced) file's name. " \
+                    "(Default: '%(name)s_%(yyyymmdd)s_%(secs)05d_cleaned.ar')")
+@cli_common.file_selection_options
+@click.option('-F', '--cleaner', 'cleaner_queue', type=str, multiple=True, \
+                callback=_cb_cleaner_queue, \
+                help="Queue a cleaner to run, as either 'name' (to run it "
+                     "with its default configuration) or 'name:cfgstr' "
+                     "(to configure it first), where cfgstr is a "
+                     "comma-separated list of key=val cleaner-configuration "
+                     "pairs, e.g. '-F surgical:chanthresh=5,template=/path/"
+                     "to/template.npy'. May be given multiple times "
+                     "(including the same cleaner name more than once); "
+                     "cleaners are run in the order given. See "
+                     "--list-cleaners/--help-cleaner for each cleaner's "
+                     "available parameters.")
+@click.option('--help-cleaner', type=str, default=None, metavar='CLEANER', \
+                is_eager=True, expose_value=False, callback=_cb_help_cleaner, \
+                help="Display full help for the named cleaner, then exit.")
+@click.option('--list-cleaners', is_flag=True, default=False, is_eager=True, \
+                expose_value=False, callback=_cb_list_cleaners, \
+                help="List available cleaners and descriptions, then exit.")
+@cli_common.standard_options
+@cli_common.debug_options
+def main(files, outfn, from_glob, excluded_files, excluded_by_glob, cleaner_queue):
+    """Given a list of PSRCHIVE file names clean RFI from each one."""
     print("")
     print("         clean.py")
     print("     Patrick  Lazarus")
     print("")
-    file_list = args.files + args.from_glob
-    to_exclude = args.excluded_files + args.excluded_by_glob
-    to_clean = utils.exclude_files(file_list, to_exclude)
+    to_clean = cli_common.resolve_file_list(files, from_glob, \
+                                        excluded_files, excluded_by_glob)
     print("Number of input files: %d" % len(to_clean))
-    
-    
+
     # Read configurations
     for infn in to_clean:
         inarf = utils.ArchiveFile(infn)
         config.cfg.load_configs_for_archive(inarf)
-        outfn = utils.get_outfn(args.outfn, inarf)
-        shutil.copy(inarf.fn, outfn)
-        
-        outarf = utils.ArchiveFile(outfn)
+        outfile = utils.get_outfn(outfn, inarf)
+        shutil.copy(inarf.fn, outfile)
+
+        outarf = utils.ArchiveFile(outfile)
         ar = outarf.get_archive()
-        
+
         try:
-            for name, cfgstrs in args.cleaner_queue:
+            for name, cfgstrs in cleaner_queue:
                 # Set up the cleaner
                 cleaner = cleaners.load_cleaner(name)
                 for cfgstr in cfgstrs:
@@ -589,79 +654,13 @@ def main():
         except:
             # An error prevented cleaning from being successful
             # Remove the output file because it may confuse the user
-            #if os.path.exists(outfn):
-            #    os.remove(outfn)
+            #if os.path.exists(outfile):
+            #    os.remove(outfile)
             raise
         finally:
-            ar.unload(outfn)
-            print("Cleaned archive: %s" % outfn)
-        
-    
-class CleanerArguments(utils.DefaultArguments):
-    def __init__(self, *args, **kwargs):
-        super(CleanerArguments, self).__init__(add_help=False, \
-                                                *args, **kwargs)
-        self.add_argument('-h', '--help', nargs='?', dest='help_topic', \
-                            metavar='CLEANER', \
-                            action=self.HelpAction, type=str, \
-                            help="Display this help message. If provided "
-                                "with the name of a cleaner, display "
-                                "its help.")
-
-    class HelpAction(argparse.Action):
-        def __call__(self, parser, namespace, values, option_string):
-            if values is None:
-                parser.print_help()
-            else:
-                cleaner = cleaners.load_cleaner(values)
-                print(cleaner.get_help(full=True))
-            sys.exit(1)
-
-    class ListCleanersAction(argparse.Action):
-        def __call__(self, parser, namespace, values, option_string):
-            colour.cprint("Available Cleaners:", \
-                            bold=True, underline=True) 
-            for name in sorted(cleaners.registered_cleaners):
-                cleaner = cleaners.load_cleaner(name)
-                print(cleaner.get_help())
-            sys.exit(1)
-
-    class AppendCleanerAction(argparse.Action):
-        def __call__(self, parser, namespace, values, option_string):
-            # Append the name of the cleaner and an empty list for
-            # configuration strings
-            getattr(namespace, self.dest).append((values, []))
-
-    class ConfigureCleanerAction(argparse.Action):
-        def __call__(self, parser, namespace, values, option_string):
-            # Append configuration string to most recently added
-            # cleaner
-            getattr(namespace, 'cleaner_queue')[-1][1].append(values)
+            ar.unload(outfile)
+            print("Cleaned archive: %s" % outfile)
 
 
 if __name__=="__main__":
-    parser = CleanerArguments(usage="%(prog)s [OPTIONS] FILES ...", \
-                        description="Given a list of PSRCHIVE file names " \
-                                    "clean RFI from each one.")
-    parser.set_defaults(cleaner_queue=[])
-    parser.add_argument('files', nargs='*', \
-                        help="Files to clean.")
-    parser.add_argument('-o', '--outname', dest='outfn', type=str, \
-                        help="The output (reduced) file's name. " \
-                            "(Default: '%%(name)s_%%(yyyymmdd)s_%%(secs)05d_cleaned.ar')", \
-                        default="%(name)s_%(yyyymmdd)s_%(secs)05d_cleaned.ar")
-    parser.add_file_selection_group()
-    parser.add_argument('-F', '--cleaner', dest='cleaner_queue', \
-                        action=parser.AppendCleanerAction, type=str, \
-                        help="A string that matches one of the names of " \
-                             "the available cleaning functions.")
-    parser.add_argument('-c', dest='cfgstr', \
-                        action=parser.ConfigureCleanerAction, type=str, \
-                        help="A string of Cleaner configurations to " \
-                            "apply to the cleaner most recently added " \
-                            "to the queue.")
-    parser.add_argument('--list-cleaners', nargs=0, \
-                        action=parser.ListCleanersAction, \
-                        help="List available cleaners and descriptions, then exit.")
-    args = parser.parse_args()
     main()

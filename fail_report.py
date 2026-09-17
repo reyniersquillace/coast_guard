@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 import os.path
 
+import click
+
 from coast_guard import database
 from coast_guard import reduce_data
 from coast_guard import utils
+from coast_guard import cli_common
 
 def get_files(db):
     """Get a list of files from the database.
@@ -22,7 +25,17 @@ def get_files(db):
     return rows
 
 
-def main():
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.option("-O", "--output-style", "output_style", default="overview",
+                help="How to display output. Possible "
+                    "values are 'overview' and 'detail'. "
+                    "(Default: overview)")
+@cli_common.standard_options
+@cli_common.debug_options
+def main(output_style):
+    """Get a report of files that failed the automated Asterix
+        data reduction.
+    """
     db = database.Database()
     nfailed = {}
     ntotal = {}
@@ -32,7 +45,7 @@ def main():
         if filerow['status'] == 'failed':
             nfailed[filerow['stage']] = 1 + \
                             nfailed.setdefault(filerow['stage'], 0)
-            if args.output_style == 'detail':
+            if output_style == 'detail':
                 logrow = reduce_data.get_log(db, filerow['group_id'])
                 print("File ID: %d - Group ID: %d (%s)" % \
                         (filerow['file_id'], filerow['group_id'], \
@@ -43,7 +56,7 @@ def main():
                                                     logrow['logname']))
                 print("    Note: %s" % filerow['note'])
                 print("")
-    if args.output_style == 'overview':
+    if output_style == 'overview':
         print("Overview")
         for stage in ('combined', 'corrected', 'cleaned'):
             print("%s: %d failed / %d total" % \
@@ -52,13 +65,4 @@ def main():
 
 
 if __name__ == '__main__':
-    parser = utils.DefaultArguments(description="Get a report of " \
-                        "files that failed the automated Asterix " \
-                        "data reduction.")
-    parser.add_argument("-O", "--output-style", dest="output_style", \
-                        default="overview", \
-                        help="How to display output. Possible " \
-                            "values are 'overview' and 'detail'. " \
-                            "(Default: overview)")
-    args = parser.parse_args()
     main()

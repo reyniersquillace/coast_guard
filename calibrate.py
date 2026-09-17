@@ -2,10 +2,13 @@
 import datetime
 import os.path
 
+import click
+
 from coast_guard import config
 from coast_guard import utils
 from coast_guard import errors
 from coast_guard import database
+from coast_guard import cli_common
 
 
 def get_caldb(db, sourcename):
@@ -181,39 +184,38 @@ def calibrate(infn, caldbpath, nchans=None):
     return calfn
 
 
-def main():
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.argument('files', nargs=-1)
+@click.option('--caldb', 'caldb', type=str, default=None,
+                help="Calibrator database to use. "
+                     "(Default: use the database for this "
+                     "pulsar from the pipeline)")
+@cli_common.standard_options
+@cli_common.debug_options
+def main(files, caldb):
+    """Calibrate Asterix data files."""
     print("")
     print("        calibrate.py")
     print("     Patrick  Lazarus")
     print("")
-    
-    if len(args.files):
-        print("Number of input files: %d" % len(args.files))
+
+    if len(files):
+        print("Number of input files: %d" % len(files))
     else:
         raise errors.InputError("No files to calibrate!")
 
-    if args.caldb is None:
+    if caldb is None:
         # Prepare to fetch caldb info from the pipeline database
         db = database.Database()
-    else:
-        caldb = args.caldb
+    use_caldb = caldb
 
-    for fn in args.files:
-        if args.caldb is None: 
+    for fn in files:
+        if caldb is None:
             arf = utils.ArchiveFile(fn)
-            caldb = update_caldb(db, arf['name'], force=True)
-        calfn = calibrate(fn, caldb)
+            use_caldb = update_caldb(db, arf['name'], force=True)
+        calfn = calibrate(fn, use_caldb)
         #print "    Output calibrated file: %s" % calfn
 
 
 if __name__ == '__main__':
-    parser = utils.DefaultArguments(description="Calibrate Asterix " \
-                                    "data files.")
-    parser.add_argument('files', nargs='*', help="Files to calibrate.")
-    parser.add_argument('--caldb', dest='caldb', type=str, \
-                        help="Calibrator database to use. " \
-                             "(Default: use the database for this " \
-                             "pulsar from the pipeline)", \
-                        default=None)
-    args = parser.parse_args()
     main()

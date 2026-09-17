@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 
+import click
 import matplotlib.pyplot as plt
 
 from coast_guard import config
 from coast_guard import database
 from coast_guard import utils
+from coast_guard import cli_common
 
 import numpy as np
 from math import isinf
@@ -47,10 +49,17 @@ def get_files(psrname):
 
        
 
-def main():
-    #psrnames = open(args.psrfile)   
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.option('-p', '--psr', 'psrname', type=str, required=True,
+                help='Name of the pulsar to check.')
+@click.option('--files', 'psrfile', type=str,
+                help="gfger")
+@cli_common.standard_options
+@cli_common.debug_options
+def main(psrname, psrfile):
+    """Check detections for a pulsar."""
+    #psrnames = open(psrfile)
 
-    psrname = args.psrname
     if True:
         rows = get_files(psrname)  
      
@@ -141,14 +150,4 @@ def main():
 
 
 if __name__ == '__main__':
-    parser = utils.DefaultArguments(description="Check detections for a pulsar.")
-    parser.add_argument('-p', '--psr', dest='psrname', type=str,
-                        required=True,
-                        help='Name of the pulsar to check.')
-#    parser.add_argument('--file', dest='psrlist', type=str,
-#                        required=True,
-#                        help='sfsfdf')
-    parser.add_argument('--files', dest='psrfile', type=str, 
-                         help="gfger")   
-    args = parser.parse_args()
-    main()             
+    main()

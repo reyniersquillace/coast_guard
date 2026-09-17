@@ -10,6 +10,8 @@ Patrick Lazarus, Jan 17, 2014
 import sys
 import datetime
 
+import click
+
 from PyQt4 import QtGui as qtgui
 from PyQt4 import QtCore as qtcore
 import ui_reviewer
@@ -17,6 +19,7 @@ import ui_reviewer
 from coast_guard import database
 from coast_guard import utils
 from coast_guard import reduce_data
+from coast_guard import cli_common
 
 
 class FailedFilesModel(qtcore.QAbstractTableModel):
@@ -177,10 +180,16 @@ class Reviewer(qtgui.QWidget, ui_reviewer.Ui_Reviewer):
         self.mapper.setCurrentModelIndex(newindex)
 
 
-def main():
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.option("--prioritize", "priority", multiple=True, default=(),
+                help="A rule for prioritizing observations.")
+@cli_common.standard_options
+@cli_common.debug_options
+def main(priority):
+    """Review files that failed automated Asterix data reduction jobs."""
     app = qtgui.QApplication(sys.argv)
-    
-    review_win = Reviewer(priorities=args.priority)
+
+    review_win = Reviewer(priorities=list(priority))
     # Display the window
     review_win.show()
 
@@ -189,10 +198,4 @@ def main():
 
 
 if __name__ == "__main__":
-    parser = utils.DefaultArguments(description="Review files that failed "
-                                    "automated Asterix data reduction jobs.")
-    parser.add_argument("--prioritize", action='append',
-                        default=[], dest='priority',
-                        help="A rule for prioritizing observations.")
-    args = parser.parse_args()
     main()

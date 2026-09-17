@@ -5,9 +5,12 @@ import os.path
 import datetime
 import shutil
 
+import click
+
 from coast_guard import config
 from coast_guard import utils
 from coast_guard import database
+from coast_guard import cli_common
 
 
 def dump_db_entries(db, dir_id, obs_ids=None, log_ids=None, file_ids=None, diag_ids=None):
@@ -148,14 +151,31 @@ def get_dir_from_id(dir_id):
     return rows[0]['path']
 
             
-def main():
-    if args.dir_id is not None:
+@click.command(context_settings=dict(help_option_names=['-h', '--help']))
+@click.option("--dir-id", "dir_id", type=int, default=None,
+                help="ID of directory to remove's database entry.")
+@click.option("--dir", "dir", type=str, default=None,
+                help="Raw data directory whose database entries "
+                     "should be removed. Note: the raw data "
+                     "nor its directory will _not_ be removed.")
+@click.option("-n", "--dry-run", "dryrun", is_flag=True,
+                help="Don't actually remove database entries or "
+                     "move files. (Default: remove and move)")
+@cli_common.standard_options
+@cli_common.debug_options
+def main(dir_id, dir, dryrun):
+    """Remove directory, processed files and database entries."""
+    # Mirrors the old argparse mutually-exclusive group for
+    # --dir-id/--dir: at most one of the two may be given.
+    if (dir_id is not None) and (dir is not None):
+        raise click.UsageError(
+            "argument --dir: not allowed with argument --dir-id")
+    if dir_id is not None:
         # Get directory path from database
-        dir_toremove = get_dir_from_id(args.dir_id)
-        dir_id = arg.dir_id
+        dir_toremove = get_dir_from_id(dir_id)
     else:
-        dir_toremove = os.path.join(config.base_rawdata_dir, args.dir)
-        dir_id = get_id_from_dir(args.dir)
+        dir_toremove = os.path.join(config.base_rawdata_dir, dir)
+        dir_id = get_id_from_dir(dir)
     if not dir_toremove.startswith(config.base_rawdata_dir):
         raise ValueError("Directory to remove (%s) is not in the raw "
                          "data directory (%s)" % 
@@ -199,7 +219,7 @@ def main():
     mysqldumpstr = dump_db_entries(db, dir_id, obs_ids, log_ids, file_ids, diag_ids)
     utils.print_info("MySQL dump:\n%s" % mysqldumpstr, 2)
     
-    if not args.dryrun:
+    if not dryrun:
         try:
             # Make back-up directory
             os.makedirs(backupdir)
@@ -261,18 +281,4 @@ def main():
 
 
 if __name__ == '__main__':
-    parser = utils.DefaultArguments(description="Remove directory, processed "
-                                                "files and database entries.")
-   
-    dirgroup = parser.add_mutually_exclusive_group()
-    dirgroup.add_argument("--dir-id", dest='dir_id', type=int,
-                          help="ID of directory to remove's database entry.")
-    dirgroup.add_argument("--dir", dest="dir", type=str,
-                          help="Raw data directory whose database entries "
-                               "should be removed. Note: the raw data "
-                               "nor its directory will _not_ be removed.")
-    parser.add_argument("-n", "--dry-run", action='store_true', dest='dryrun',
-                        help="Don't actually remove database entries or "
-                             "move files. (Default: remove and move)")
-    args = parser.parse_args()
     main()
